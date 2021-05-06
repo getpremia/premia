@@ -153,7 +153,7 @@ class Woocommerce {
 				$license_info = array(
 					'license_key' => $license->getDecryptedLicenseKey(),
 					'site_url'    => '',
-					'plugin'      => $product->get_name(),
+					'plugin'      => $product->get_slug(),
 					'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
 				);
 
@@ -202,7 +202,7 @@ class Woocommerce {
 				$license_info = array(
 					'license_key' => $license->getDecryptedLicenseKey(),
 					'site_url'    => '',
-					'plugin'      => $product->get_name(),
+					'plugin'      => $product->get_slug(),
 					'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
 				);
 				$download_url = get_rest_url() . 'license-updater/v1/download_update';
