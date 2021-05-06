@@ -67,14 +67,9 @@ class REST_Endpoints {
 	public function download_update( $request ) {
 
 		$params = $request->get_params();
+		$license_info = $params;
 
 		$product = wc_get_product( get_page_by_path( $params['plugin'], OBJECT, 'product' ) );
-
-		$license_info = array(
-			'license_key' => $params['license_key'],
-			'site_url'    => $params['site_url'],
-			'id'          => $product->get_id(),
-		);
 
 		if ( ! is_user_logged_in() && ! $this->validate_request( $license_info ) ) {
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
@@ -86,9 +81,9 @@ class REST_Endpoints {
 			return array( 'error' => 'error' );
 		}
 
-		$api_url = get_post_meta( $license_info['id'], '_updater_repo', true );
+		$api_url = get_post_meta( $product->get_id(), '_updater_repo', true );
 
-		$api_token = get_post_meta( $license_info['id'], '_updater_api_token', true );
+		$api_token = get_post_meta( $product->get_id(), '_updater_api_token', true );
 
 		$args = array(
 			'headers' => array(
@@ -100,8 +95,6 @@ class REST_Endpoints {
 		$body   = json_decode( wp_remote_retrieve_body( $result ) );
 
 		$zip = wp_remote_get( $body->zipball_url, $args );
-
-		$product = wc_get_product( $license_info['id'] );
 
 		$base_dir = plugin_dir_path( dirname( __FILE__ ) );
 
@@ -189,6 +182,7 @@ class REST_Endpoints {
 	public function check_updates( $request ) {
 
 		$params = $request->get_params();
+		$license_info = $params;
 		
 		$product = wc_get_product( get_page_by_path( $params['plugin'], OBJECT, 'product' ) );
 
@@ -196,20 +190,14 @@ class REST_Endpoints {
 			return new \WP_REST_Response( array( 'error' => 'Missing parameters.' ), 400 );
 		}
 
-		$license_info = array(
-			'license_key'  => $params['license_key'],
-			'site_url' => $params['site_url'],
-			'id'          => $product->get_id(),
-		);
-
 		if ( ! $this->validate_request( $license_info ) ) {
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
 		}
 
 		$validate = $this->validate( $license_info );
 
-		$api_url   = get_post_meta( $license_info['id'], '_updater_repo', true );
-		$api_token = get_post_meta( $license_info['id'], '_updater_api_token', true );
+		$api_url   = get_post_meta( $product->get_id(), '_updater_repo', true );
+		$api_token = get_post_meta( $product->get_id(), '_updater_api_token', true );
 
 		$latest      = Github_API::request( $api_url, $api_token, 'releases/latest' );
 		$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
@@ -221,8 +209,6 @@ class REST_Endpoints {
 		$readme_body = json_decode( $readme['body'] );
 
 		$readme_text = base64_decode( $readme_body->content );
-
-		$product = wc_get_product( $license_info['id'] );
 
 		$download_url = '';
 		if ( $validate ) {
