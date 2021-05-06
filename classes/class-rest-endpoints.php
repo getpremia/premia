@@ -124,6 +124,8 @@ class REST_Endpoints {
 	public function check_updates( $request ) {
 
 		$params = $request->get_params();
+		
+		$product = wc_get_product( get_page_by_path( $params['plugin'], OBJECT, 'product' ) );
 
 		if ( ! isset( $params['license_key'] ) || ! isset( $params['site_url'] ) || ! isset( $params['plugin'] ) ) {
 			return new \WP_REST_Response( array( 'error' => 'Missing parameters.' ), 400 );
@@ -132,7 +134,7 @@ class REST_Endpoints {
 		$license_info = array(
 			'license_key'  => $params['license_key'],
 			'site_url' => $params['site_url'],
-			'id'       => url_to_postid( $params['plugin'] ),
+			'id'          => $product->get_id(),
 		);
 
 		if ( ! $this->validate_request( $license_info ) ) {
@@ -148,7 +150,7 @@ class REST_Endpoints {
 		$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
 
 		$readme      = Github_API::request( $api_url, $api_token, 'readme' );
-		if (is_wp_error($readme)) {
+		if ( is_wp_error($readme) ) {
 			return new \WP_REST_Response( array( 'error' => 'Cannot read readme.' ), 400 );	
 		}
 		$readme_body = json_decode( $readme['body'] );
@@ -183,9 +185,16 @@ class REST_Endpoints {
 		$license_info = $request->get_params();
 
 		if ( $license_info['action'] === 'deactivate' ) {
-			Woocommerce_License_Updater::deactivate_license( $license_info );
+			$deactivate = Woocommerce_License_Updater::deactivate_license( $license_info );
+			if (!$deactivate) {
+				return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );	
+			}
 		} else {
-			Woocommerce_License_Updater::activate_license( $license_info );
+			$activate = Woocommerce_License_Updater::activate_license( $license_info );
+			if (!$activate) {
+				return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );	
+			}
+			
 		}
 		return $activate;
 	}

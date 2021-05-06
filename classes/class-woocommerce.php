@@ -98,7 +98,7 @@ class Woocommerce {
 				$license = lmfwc_get_license( $license_key );
 
 				if ( $action === 'deactivate' ) {
-					Woocommerce_License_Updater::deactivate_license(
+					$deactivate = Woocommerce_License_Updater::deactivate_license(
 						array(
 							'license_key' => $license,
 							'site_url'    => $site_url,
@@ -198,7 +198,7 @@ class Woocommerce {
 				echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'woocommerce-license-updater' ) . '';
 			}
 			foreach ( $data['keys'] as $license ) {
-				$product = wc_get_product( $license->getproductId() );
+				$product      = wc_get_product( $license->getproductId() );
 				$license_info = array(
 					'license_key' => $license->getDecryptedLicenseKey(),
 					'site_url'    => '',

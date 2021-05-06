@@ -36,7 +36,7 @@ class Woocommerce_License_Updater {
 
 	/**
 	 * Add hooks and filters
-	*/
+	 */
 	public function init() {
 		new Woocommerce();
 		new Github_API();
@@ -50,6 +50,9 @@ class Woocommerce_License_Updater {
 	 */
 	public static function deactivate_license( $license_info ) {
 		$license = lmfwc_get_license( $license_info['license_key'] );
+		if ( ! $license ) {
+			return false;
+		}
 		if ( $license->getTimesActivated() > 0 ) {
 			lmfwc_deactivate_license( $license->getDecryptedLicenseKey() );
 		}
@@ -63,6 +66,10 @@ class Woocommerce_License_Updater {
 	 */
 	public static function activate_license( $license_info ) {
 		$license = lmfwc_get_license( $license_info['license_key'] );
+		if ( ! $license ) {
+			return false;
+		}
+		var_dump( $license );
 		lmfwc_activate_license( $license_info['license_key'] );
 		$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
 		if ( ! in_array( $license_info['site_url'], $installs, true ) ) {
