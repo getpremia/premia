@@ -66,10 +66,12 @@ class REST_Endpoints {
 	 */
 	public function download_update( $request ) {
 
-		$params = $request->get_params();
+		$params       = $request->get_params();
 		$license_info = $params;
 
 		$product = wc_get_product( get_page_by_path( $params['plugin'], OBJECT, 'product' ) );
+
+		$plugin_file = $product->get_slug() . '.zip';
 
 		if ( ! is_user_logged_in() && ! $this->validate_request( $license_info ) ) {
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
@@ -114,14 +116,16 @@ class REST_Endpoints {
 			mkdir( $base_dir . 'tmp/unpacked/' . $body->tag_name );
 		}
 
-		$archive_path = $base_dir . 'tmp/zip/' . $body->tag_name . '/' . $product->get_slug() . '.zip';
+		$archive_path = $base_dir . 'tmp/zip/' . $body->tag_name . '/' . $plugin_file;
 
 		/**
 		 * If the ZIP does not exist, generate it.
 		 */
-		if ( ! is_dir( $base_dir . 'tmp/zip/' . $body->tag_name ) ) {
+		if ( ! is_file( $archive_path ) || 1 === 1 ) {
 
-			mkdir( $base_dir . 'tmp/zip/' . $body->tag_name );
+			if ( ! is_dir( $base_dir . 'tmp/zip/' . $body->tag_name ) ) {
+				mkdir( $base_dir . 'tmp/zip/' . $body->tag_name );
+			}
 
 			$parts    = explode( 'filename=', $zip['headers']['content-disposition'] );
 			$zip_name = $parts[1];
@@ -142,7 +146,7 @@ class REST_Endpoints {
 				}
 			}
 
-			$unpacked_path = $base_dir . 'tmp/unpacked/' . $unpacked_folder;
+			$unpacked_path = $base_dir . 'tmp/unpacked/' . $body->tag_name . '/' . $unpacked_folder;
 
 			$repack = new ZipArchive();
 			$repack->open( $archive_path, ZipArchive::CREATE | ZipArchive::OVERWRITE );
@@ -156,7 +160,7 @@ class REST_Endpoints {
 				if ( ! $file->isDir() ) {
 					$file_path     = $file->getRealPath();
 					$relative_path = substr( $file_path, strlen( $unpacked_path ) + 1 );
-					$repack->addFile( $file_path, $relative_path );
+					$repack->addFile( $file_path, $product->get_slug() . '/' . $relative_path );
 				}
 			}
 
@@ -239,25 +243,25 @@ class REST_Endpoints {
 			case 'deactivate':
 			$deactivate = Woocommerce_License_Updater::deactivate_license( $license_info );
 			if (!$deactivate) {
-				return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );	
+					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );	
 			}
 			break;
 
 			case 'status':
 			$license = lmfwc_get_license( $license_info['license_key'] );
 			if ( ! $license ) {
-				return new \WP_REST_Response( array( 'error' => 'License key does not exist.' ), 400 );	
+					return new \WP_REST_Response( array( 'error' => 'License key does not exist.' ), 400 );	
 			}
 			$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
 			if ( ! in_array( $license_info['site_url'], $installs, true ) ) {
-				return new \WP_REST_Response( array( 'error' => 'This website is not activated for this license.' ), 400 );	
+					return new \WP_REST_Response( array( 'error' => 'This website is not activated for this license.' ), 400 );	
 			}
 			break;
 
 			default: 
 			$activate = Woocommerce_License_Updater::activate_license( $license_info );
 			if (!$activate) {
-				return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );	
+					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );	
 			}
 			break;
 		}
