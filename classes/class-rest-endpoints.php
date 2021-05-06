@@ -146,6 +146,9 @@ class REST_Endpoints {
 		$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
 
 		$readme      = Github_API::request( $api_url, $api_token, 'readme' );
+		if (is_wp_error($readme)) {
+			return new \WP_REST_Response( array( 'error' => 'Cannot read readme.' ), 400 );	
+		}
 		$readme_body = json_decode( $readme['body'] );
 
 		$readme_text = base64_decode( $readme_body->content );
