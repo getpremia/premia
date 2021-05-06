@@ -1,0 +1,15 @@
+{
+    "name": "mklasen/woocommerce-license-updater",
+    "authors": [
+        {
+            "name": "Marinus Klasen",
+            "email": "marinus@mklasen.nl"
+        }
+    ],
+    "require": {},
+    "autoload": {
+        "classmap": [
+            "classes"
+        ]
+    }
+}
