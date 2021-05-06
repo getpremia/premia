@@ -1,6 +1,8 @@
 <?php
 namespace Woocomerce_License_Updater;
 
+use ZipArchive;
+
 /**
  * Rest Endpoints class
  *
@@ -84,7 +86,8 @@ class REST_Endpoints {
 			return array( 'error' => 'error' );
 		}
 
-		$api_url   = get_post_meta( $license_info['id'], '_updater_repo', true );
+		$api_url = get_post_meta( $license_info['id'], '_updater_repo', true );
+
 		$api_token = get_post_meta( $license_info['id'], '_updater_api_token', true );
 
 		$args = array(
@@ -100,16 +103,78 @@ class REST_Endpoints {
 
 		$product = wc_get_product( $license_info['id'] );
 
-		foreach ( $zip['headers'] as $key => $header ) {
-			if ( $key === 'content-disposition' ) {
-				header( $key . ': attachment; filename=' . $product->get_slug() . '.zip' );
-			} else {
-				header( $key . ': ' . $header );
-			}
+		$base_dir = plugin_dir_path( dirname( __FILE__ ) );
+
+		if ( ! is_dir( $base_dir . 'tmp' ) ) {
+			mkdir( $base_dir . 'tmp/' );
 		}
 
+		if ( ! is_dir( $base_dir . 'tmp/zip' ) ) {
+			mkdir( $base_dir . 'tmp/zip' );
+		}
+
+		if ( ! is_dir( $base_dir . 'tmp/unpacked' ) ) {
+			mkdir( $base_dir . 'tmp/unpacked' );
+		}
+
+		if ( ! is_dir( $base_dir . 'tmp/unpacked/' . $body->tag_name ) ) {
+			mkdir( $base_dir . 'tmp/unpacked/' . $body->tag_name );
+		}
+
+		$archive_path = $base_dir . 'tmp/zip/' . $body->tag_name . '/' . $product->get_slug() . '.zip';
+
+		/**
+		 * If the ZIP does not exist, generate it.
+		 */
+		if ( ! is_dir( $base_dir . 'tmp/zip/' . $body->tag_name ) ) {
+
+			mkdir( $base_dir . 'tmp/zip/' . $body->tag_name );
+
+			$parts    = explode( 'filename=', $zip['headers']['content-disposition'] );
+			$zip_name = $parts[1];
+
+			$file_name = $base_dir . 'tmp/zip/' . $zip_name;
+
+			file_put_contents( $file_name, $zip['body'] );
+
+			$package = new ZipArchive();
+			$package->open( $file_name );
+			$package->extractTo( $base_dir . 'tmp/unpacked/' . $body->tag_name );
+
+			$unpacked_contents = scandir( $base_dir . 'tmp/unpacked/' . $body->tag_name );
+
+			foreach ( $unpacked_contents as $folder ) {
+				if ( ! is_file( $folder ) ) {
+					$unpacked_folder = $folder;
+				}
+			}
+
+			$unpacked_path = $base_dir . 'tmp/unpacked/' . $unpacked_folder;
+
+			$repack = new ZipArchive();
+			$repack->open( $archive_path, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+
+			$files = new \RecursiveIteratorIterator(
+				new \RecursiveDirectoryIterator( $unpacked_path ),
+				\RecursiveIteratorIterator::LEAVES_ONLY
+			);
+
+			foreach ( $files as $name => $file ) {
+				if ( ! $file->isDir() ) {
+					$file_path     = $file->getRealPath();
+					$relative_path = substr( $file_path, strlen( $unpacked_path ) + 1 );
+					$repack->addFile( $file_path, $relative_path );
+				}
+			}
+
+			$repack->close();
+
+		}
+
+		header( 'content-disposition: attachment; filename=' . $product->get_slug() . '.zip' );
+
 		//phpcs:disable
-		echo $zip['body'];
+		echo file_get_contents($archive_path);
 
 		exit();
 	}
@@ -184,17 +249,31 @@ class REST_Endpoints {
 		$activate     = false;
 		$license_info = $request->get_params();
 
-		if ( $license_info['action'] === 'deactivate' ) {
+		switch ($license_info['action']) {
+			case 'deactivate':
 			$deactivate = Woocommerce_License_Updater::deactivate_license( $license_info );
 			if (!$deactivate) {
 				return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );	
 			}
-		} else {
+			break;
+
+			case 'status':
+			$license = lmfwc_get_license( $license_info['license_key'] );
+			if ( ! $license ) {
+				return new \WP_REST_Response( array( 'error' => 'License key does not exist.' ), 400 );	
+			}
+			$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
+			if ( ! in_array( $license_info['site_url'], $installs, true ) ) {
+				return new \WP_REST_Response( array( 'error' => 'This website is not activated for this license.' ), 400 );	
+			}
+			break;
+
+			default: 
 			$activate = Woocommerce_License_Updater::activate_license( $license_info );
 			if (!$activate) {
 				return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );	
 			}
-			
+			break;
 		}
 		return $activate;
 	}

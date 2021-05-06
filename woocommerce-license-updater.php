@@ -57,6 +57,7 @@ class Woocommerce_License_Updater {
 			lmfwc_deactivate_license( $license->getDecryptedLicenseKey() );
 		}
 		lmfwc_delete_license_meta( $license->getId(), 'installations', $license_info['site_url'] );
+		return true;
 	}
 
 	/**
@@ -69,12 +70,12 @@ class Woocommerce_License_Updater {
 		if ( ! $license ) {
 			return false;
 		}
-		var_dump( $license );
-		lmfwc_activate_license( $license_info['license_key'] );
+		$activate = lmfwc_activate_license( $license_info['license_key'] );
 		$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
 		if ( ! in_array( $license_info['site_url'], $installs, true ) ) {
 			$activate = lmfwc_add_license_meta( $license->getId(), 'installations', $license_info['site_url'] );
 		}
+		return true;
 	}
 
 }

@@ -95,12 +95,10 @@ class Woocommerce {
 				$site_url    = sanitize_text_field( $_GET['site_url'] );
 				$license_key = sanitize_text_field( $_GET['license_key'] );
 
-				$license = lmfwc_get_license( $license_key );
-
 				if ( $action === 'deactivate' ) {
 					$deactivate = Woocommerce_License_Updater::deactivate_license(
 						array(
-							'license_key' => $license,
+							'license_key' => $license_key,
 							'site_url'    => $site_url,
 						)
 					);
