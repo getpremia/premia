@@ -190,6 +190,10 @@ class REST_Endpoints {
 		
 		$product = wc_get_product( get_page_by_path( $params['plugin'], OBJECT, 'product' ) );
 
+		if (is_wp_error($product) || !$product) {
+			return new \WP_REST_Response( array( 'error' => 'The plugin can not be found.' ), 400 );
+		}
+
 		if ( ! isset( $params['license_key'] ) || ! isset( $params['site_url'] ) || ! isset( $params['plugin'] ) ) {
 			return new \WP_REST_Response( array( 'error' => 'Missing parameters.' ), 400 );
 		}
@@ -203,8 +207,17 @@ class REST_Endpoints {
 		$api_url   = get_post_meta( $product->get_id(), '_updater_repo', true );
 		$api_token = get_post_meta( $product->get_id(), '_updater_api_token', true );
 
-		$latest      = Github_API::request( $api_url, $api_token, 'releases/latest' );
-		$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
+		if (isset($params['tag']) && !empty($params['tag'])) {
+			$latest      = Github_API::request( $api_url, $api_token, 'releases/tags/' . $params['tag'] );
+			$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
+		} else {
+			
+			$latest      = Github_API::request( $api_url, $api_token, 'releases/latest' );
+			$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
+		}
+
+		error_log(print_r($latest_info, true));
+		error_log(print_r($tag_info, true));
 
 		$readme      = Github_API::request( $api_url, $api_token, 'readme' );
 		if ( is_wp_error($readme) ) {
