@@ -69,7 +69,7 @@ class REST_Endpoints {
 		$license_info = array(
 			'license_key' => $params['license_key'],
 			'site_url'    => $params['site_url'],
-			'id'          => url_to_postid( $params['plugin'] ),
+			'id'          => get_page_by_path( $params['plugin'], OBJECT, 'product' ),
 		);
 
 		if ( ! is_user_logged_in() && ! $this->validate_request( $license_info ) ) {
