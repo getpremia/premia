@@ -66,10 +66,12 @@ class REST_Endpoints {
 
 		$params = $request->get_params();
 
+		$product = wc_get_product( get_page_by_path( $params['plugin'], OBJECT, 'product' ) );
+
 		$license_info = array(
 			'license_key' => $params['license_key'],
 			'site_url'    => $params['site_url'],
-			'id'          => get_page_by_path( $params['plugin'], OBJECT, 'product' ),
+			'id'          => $product->get_id(),
 		);
 
 		if ( ! is_user_logged_in() && ! $this->validate_request( $license_info ) ) {
