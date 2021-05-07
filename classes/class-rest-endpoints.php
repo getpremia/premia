@@ -186,7 +186,7 @@ class REST_Endpoints {
 	public function check_updates( $request ) {
 
 		$output = array(
-			'name'         => '',
+			'name'         => 'Too bad.',
 			'version'      => '0.0.1',
 			'download_url' => '',
 			'sections'     => array(
