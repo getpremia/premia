@@ -185,20 +185,32 @@ class REST_Endpoints {
 	 */
 	public function check_updates( $request ) {
 
+		$output = array(
+			'name'         => '',
+			'version'      => '0.0.1',
+			'download_url' => '',
+			'sections'     => array(
+				'description' => 'Failed to get update.',
+			),
+		);
+
 		$params = $request->get_params();
 		$license_info = $params;
 		
 		$product = wc_get_product( get_page_by_path( $params['plugin'], OBJECT, 'product' ) );
 
 		if (is_wp_error($product) || !$product) {
+			return $output;
 			return new \WP_REST_Response( array( 'error' => 'The plugin can not be found.' ), 400 );
 		}
 
 		if ( ! isset( $params['license_key'] ) || ! isset( $params['site_url'] ) || ! isset( $params['plugin'] ) ) {
+			return $output;
 			return new \WP_REST_Response( array( 'error' => 'Missing parameters.' ), 400 );
 		}
 
 		if ( ! $this->validate_request( $license_info ) ) {
+			return $output;
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
 		}
 
@@ -216,11 +228,9 @@ class REST_Endpoints {
 			$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
 		}
 
-		error_log(print_r($latest_info, true));
-		error_log(print_r($tag_info, true));
-
 		$readme      = Github_API::request( $api_url, $api_token, 'readme' );
 		if ( is_wp_error($readme) ) {
+			return $output;
 			return new \WP_REST_Response( array( 'error' => 'Cannot read readme.' ), 400 );	
 		}
 		$readme_body = json_decode( $readme['body'] );
@@ -233,7 +243,7 @@ class REST_Endpoints {
 			$download_url = add_query_arg( $license_info, $download_url );
 		}
 
-		return array(
+		$output = array(
 			'name'         => $product->get_name(),
 			'version'      => $latest_info->tag_name,
 			'download_url' => $download_url,
@@ -241,6 +251,8 @@ class REST_Endpoints {
 				'description' => $readme_text,
 			),
 		);
+
+		return $output;
 	}
 
 	/**
