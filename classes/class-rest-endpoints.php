@@ -196,6 +196,10 @@ class REST_Endpoints {
 
 		$params = $request->get_params();
 		$license_info = $params;
+
+		if (!isset($params['plugin']) || empty($params['plugin'])) {
+			return $output;
+		}
 		
 		$product = wc_get_product( get_page_by_path( $params['plugin'], OBJECT, 'product' ) );
 
