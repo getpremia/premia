@@ -1,5 +1,5 @@
 <?php
-namespace Woocomerce_License_Updater;
+namespace Premia;
 
 use ZipArchive;
 
@@ -57,6 +57,80 @@ class REST_Endpoints {
 				'permission_callback' => '__return_true',
 			)
 		);
+
+		register_rest_route(
+			'license-updater/v1',
+			'deactivate',
+			array(
+				'methods'             => array( 'GET', 'POST' ),
+				'callback'            => array( $this, 'deactivate' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+	}
+
+	/**
+	 * Rest callback for deactivation.
+	 *
+	 * @param object $request The request object.
+	 */
+	public function activate( $request ) {
+		return $this->manage_license( $request->get_params(), 'activate' );
+	}
+
+	/**
+	 * Rest callback for activation.
+	 *
+	 * @param object $request The request object.
+	 */
+	public function deactivate( $request ) {
+		return $this->manage_license( $request->get_params(), 'deactivate' );
+	}
+
+	/**
+	 * Rest callback for activation.
+	 *
+	 * @param object $request The request object.
+	 */
+	public function manage_license( $license_info, $action ) {
+
+		switch ( $action ) {
+			case 'deactivate':
+				$deactivate = Woocommerce_License_Updater::deactivate_license( $license_info );
+				if ( ! $deactivate ) {
+					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
+				}
+				break;
+
+			case 'activate':
+				$activate = Woocommerce_License_Updater::activate_license( $license_info );
+				if ( ! $activate ) {
+					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
+				}
+				break;
+
+			default:
+				$license = lmfwc_get_license( $license_info['license_key'] );
+				if ( ! $license ) {
+					return new \WP_REST_Response( array( 'error' => 'License key does not exist.' ), 400 );
+				}
+				$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
+				if ( ! in_array( $license_info['site_url'], $installs, true ) ) {
+					return new \WP_REST_Response( array( 'error' => 'This website is not activated for this license.' ), 400 );
+				}
+				break;
+		}
+		return $activate;
+	}
+
+	public function get_github_data( $post_id ) {
+
+		$data = array();
+		// Get Github information from post.
+		$data['api_url']   = get_post_meta( $post_id, '_updater_repo', true );
+		$data['api_token'] = get_post_meta( $post_id, '_updater_api_token', true );
+
+		return $data;
 	}
 
 	/**
@@ -66,40 +140,170 @@ class REST_Endpoints {
 	 */
 	public function download_update( $request ) {
 
-		$params       = $request->get_params();
-		$license_info = $params;
+		$license_info = $request->get_params();
 
-		$product = wc_get_product( get_page_by_path( $params['plugin'], OBJECT, 'product' ) );
-
-		$plugin_file = $product->get_slug() . '.zip';
-
-		if ( ! is_user_logged_in() && ! $this->validate_request( $license_info ) ) {
+		// If the user is not logged in and we can't validate the license_info, bail.
+		if ( ! $this->validate_request( $license_info ) ) {
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
 		}
 
+		// Get the post that contains information about this download.
+		$page_id = get_page_by_path( $license_info['plugin'], OBJECT, 'product' );
+		$product = wc_get_product( $page_id );
+
+		// Build the plugin file name from the slug.
+		$plugin_file = $product->get_slug() . '.zip';
+
+		// Validate the license info.
 		$validate = $this->validate( $license_info );
 
+		// Can't validate? bail.
 		if ( ! $validate ) {
-			return array( 'error' => 'error' );
+			return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
 		}
 
-		$api_url = get_post_meta( $product->get_id(), '_updater_repo', true );
+		$github_data = $this->get_github_data( $product->get_id() );
 
-		$api_token = get_post_meta( $product->get_id(), '_updater_api_token', true );
+		// Can't authenticate? bail.
+		if ( empty( $github_data['api_url'] ) || empty( $github_data['api_token'] ) ) {
+			return new \WP_REST_Response( array( 'error' => 'No API URL and token provided.' ), 400 );
+		}
 
-		$args = array(
-			'headers' => array(
-				'Authorization' => 'Bearer ' . $api_token,
-			),
-		);
+		// Get the result.
+		$result = Github_API::request( $github_data, 'releases/latest' );
 
-		$result = wp_remote_get( $api_url . 'releases/latest', $args );
-		$body   = json_decode( wp_remote_retrieve_body( $result ) );
+		if ( is_wp_error($result) || wp_remote_retrieve_response_code( $result ) !== 200 ) {
+			return new \WP_REST_Response( array( 'error' => 'Failed to communicate with Github.' ), 400 );
+		}
 
-		$zip = wp_remote_get( $body->zipball_url, $args );
+		$body    = json_decode( wp_remote_retrieve_body( $result ) );
+		$version = $body->tag_name;
 
 		$base_dir = plugin_dir_path( dirname( __FILE__ ) );
+		$this->prepare_directories( $base_dir, $version );
 
+		// Get the ZIP.
+		$zip_url = str_replace( $github_data['api_url'], '', $body->zipball_url );
+		$file_path = $this->download_zip( $github_data, $zip_url, $base_dir );
+
+		$archive_path = $base_dir . 'tmp/zip/' . $version . '/' . $plugin_file;
+
+		// If the ZIP does not exist, generate it.
+		// @todo Maybe check the modified time of the file, if older then (plugin settings option) then..
+		if ( ! is_file( $archive_path ) || ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ) {
+			$archive_path = $this->generate_zip( $base_dir, $version, $archive_path, $product->get_slug(), $file_path );
+		}
+
+		// Set the correct headers.
+
+		if (file_exists($archive_path)) {
+			header( 'content-disposition: attachment; filename=' . $plugin_file );
+		}
+
+		// Bring back the ZIP!
+		//phpcs:disable
+		echo file_get_contents($archive_path);
+
+		exit();
+	}
+
+	public function download_zip($github_data, $path, $base_dir) {
+		$zip = Github_API::request( $github_data, $path );
+
+		if ( is_wp_error( $zip ) ) {
+			return new \WP_REST_Response( array( 'error' => 'Zip is invalid.' ), 400 );
+		}
+
+		$parts    = explode( 'filename=', $zip['headers']['content-disposition'] );
+		$zip_name = $parts[1];
+
+		$file_path = $base_dir . 'tmp/zip/' . $zip_name;
+
+		// Save the zip file.
+		file_put_contents( $file_path, $zip['body'] );
+
+		return $file_path;
+	}
+
+	public function generate_zip($base_dir, $version, $archive_path, $plugin_name, $file_path) {
+
+		// This is where magic unpack and repacking happens.
+
+		$extract_path = $base_dir . 'tmp/unpacked/' . $version;
+
+		// Extract the zip file.
+		$package = new ZipArchive();
+		$package->open( $file_path );
+		$package->extractTo( $extract_path );
+
+		// Scan the unpacked contents
+		$unpacked_contents = scandir( $base_dir . 'tmp/unpacked/' . $version );
+
+		// Get the name of the unpacked folder.
+		foreach ( $unpacked_contents as $folder ) {
+			if ( ! is_file( $folder ) ) {
+				$unpacked_folder = $folder;
+			}
+		}
+
+		// Full path to unpacked folder.
+		$unpacked_path = $base_dir . 'tmp/unpacked/' . $version . '/' . $unpacked_folder;
+
+		// Create a new zip file.
+		$repack = new ZipArchive();
+		$repack->open( $archive_path, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+
+		$dir = $unpacked_path;
+		$it = new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS);
+		$files = new \RecursiveIteratorIterator($it,
+					\RecursiveIteratorIterator::CHILD_FIRST);
+
+		// Add the files to the repack.
+		foreach ( $files as $name => $file ) {
+			if ( ! $file->isDir() ) {
+				// Get actual path
+				$file_to_add = $file->getRealPath();
+
+				// Somehow generate the relative path.
+				$relative_path = substr( $file_to_add, strlen( $unpacked_path ) + 1 );
+
+				$zip_file_path = $plugin_name . '/' . $relative_path;
+
+				// Add the files but slice in a subfolder.
+				$repack->addFile( $file_to_add, $zip_file_path );
+			}
+		}
+
+		// Close the ZIP.
+		$repack->close();
+
+		/**
+		 * Clean up
+		 */
+
+		// Remove original package
+		unlink($file_path);
+
+		// Remove files and directories
+		foreach($files as $file) {
+			if ($file->isDir()){
+				rmdir($file->getRealPath());
+			} else {
+				unlink($file->getRealPath());
+			}
+		}
+
+		// Remove subdir
+		rmdir($dir);
+		
+		// Remove vrsion dirr
+		rmdir($extract_path);
+
+		return $archive_path;
+	}
+
+	public function prepare_directories($base_dir, $version) {
+	
 		if ( ! is_dir( $base_dir . 'tmp' ) ) {
 			mkdir( $base_dir . 'tmp/' );
 		}
@@ -110,70 +314,15 @@ class REST_Endpoints {
 
 		if ( ! is_dir( $base_dir . 'tmp/unpacked' ) ) {
 			mkdir( $base_dir . 'tmp/unpacked' );
+		}	
+
+		if ( ! is_dir( $base_dir . 'tmp/unpacked/' . $version ) ) {
+			mkdir( $base_dir . 'tmp/unpacked/' . $version );
 		}
 
-		if ( ! is_dir( $base_dir . 'tmp/unpacked/' . $body->tag_name ) ) {
-			mkdir( $base_dir . 'tmp/unpacked/' . $body->tag_name );
+		if ( ! is_dir( $base_dir . 'tmp/zip/' . $version ) ) {
+			mkdir( $base_dir . 'tmp/zip/' . $version );
 		}
-
-		$archive_path = $base_dir . 'tmp/zip/' . $body->tag_name . '/' . $plugin_file;
-
-		/**
-		 * If the ZIP does not exist, generate it.
-		 */
-		if ( ! is_file( $archive_path ) || 1 === 1 ) {
-
-			if ( ! is_dir( $base_dir . 'tmp/zip/' . $body->tag_name ) ) {
-				mkdir( $base_dir . 'tmp/zip/' . $body->tag_name );
-			}
-
-			$parts    = explode( 'filename=', $zip['headers']['content-disposition'] );
-			$zip_name = $parts[1];
-
-			$file_name = $base_dir . 'tmp/zip/' . $zip_name;
-
-			file_put_contents( $file_name, $zip['body'] );
-
-			$package = new ZipArchive();
-			$package->open( $file_name );
-			$package->extractTo( $base_dir . 'tmp/unpacked/' . $body->tag_name );
-
-			$unpacked_contents = scandir( $base_dir . 'tmp/unpacked/' . $body->tag_name );
-
-			foreach ( $unpacked_contents as $folder ) {
-				if ( ! is_file( $folder ) ) {
-					$unpacked_folder = $folder;
-				}
-			}
-
-			$unpacked_path = $base_dir . 'tmp/unpacked/' . $body->tag_name . '/' . $unpacked_folder;
-
-			$repack = new ZipArchive();
-			$repack->open( $archive_path, ZipArchive::CREATE | ZipArchive::OVERWRITE );
-
-			$files = new \RecursiveIteratorIterator(
-				new \RecursiveDirectoryIterator( $unpacked_path ),
-				\RecursiveIteratorIterator::LEAVES_ONLY
-			);
-
-			foreach ( $files as $name => $file ) {
-				if ( ! $file->isDir() ) {
-					$file_path     = $file->getRealPath();
-					$relative_path = substr( $file_path, strlen( $unpacked_path ) + 1 );
-					$repack->addFile( $file_path, $product->get_slug() . '/' . $relative_path );
-				}
-			}
-
-			$repack->close();
-
-		}
-
-		header( 'content-disposition: attachment; filename=' . $product->get_slug() . '.zip' );
-
-		//phpcs:disable
-		echo file_get_contents($archive_path);
-
-		exit();
 	}
 
 	/**
@@ -185,70 +334,59 @@ class REST_Endpoints {
 	 */
 	public function check_updates( $request ) {
 
-		$output = array(
-			'name'         => 'Too bad.',
-			'version'      => '0.0.1',
-			'download_url' => '',
-			'sections'     => array(
-				'description' => 'Failed to get update.',
-			),
-		);
+		$license_info = $request->get_params();
+		$download_url = '';
 
-		$params = $request->get_params();
-		$license_info = $params;
-
-		if (!isset($params['plugin']) || empty($params['plugin'])) {
-			return $output;
+		if (!isset($license_info['plugin']) || empty($license_info['plugin'])) {
+			return new \WP_REST_Response( array( 'error' => 'No plugin provided.' ), 400 );
 		}
 		
-		$product = wc_get_product( get_page_by_path( $params['plugin'], OBJECT, 'product' ) );
+		$post = get_post( get_page_by_path( $license_info['plugin'], OBJECT, 'product' ) );
 
-		if (is_wp_error($product) || !$product) {
-			return $output;
+		if (is_wp_error($post) || !$post) {
 			return new \WP_REST_Response( array( 'error' => 'The plugin can not be found.' ), 400 );
 		}
 
-		if ( ! isset( $params['license_key'] ) || ! isset( $params['site_url'] ) || ! isset( $params['plugin'] ) ) {
-			return $output;
+		if ( ! isset( $license_info['license_key'] ) || ! isset( $license_info['site_url'] ) || ! isset( $license_info['plugin'] ) ) {
 			return new \WP_REST_Response( array( 'error' => 'Missing parameters.' ), 400 );
 		}
 
 		if ( ! $this->validate_request( $license_info ) ) {
-			return $output;
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
 		}
 
+		$github_data = $this->get_github_data( $post->ID );
+
+		if (isset($license_info['tag']) && !empty($license_info['tag'])) {
+			$latest      = Github_API::request( $github_data, 'releases/tags/' . $license_info['tag'] );
+		} else {
+			$latest      = Github_API::request( $github_data, 'releases/latest' );
+		}
+
+		if ( is_wp_error($latest) || wp_remote_retrieve_response_code( $latest ) !== 200 ) {
+			return new \WP_REST_Response( array( 'error' => 'Failed to communicate with Github.' ), 400 );
+		}
+
+		$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
+
+		$readme_text = '';
+		$readme      = Github_API::request( $github_data, 'readme' );
+		if ( ! is_wp_error($readme) && wp_remote_retrieve_response_code( $readme ) === 200 ) {
+			$readme_body = json_decode( $readme['body'] );
+			$readme_text = base64_decode( $readme_body->content );	
+		}
+
+		// Validate the license
 		$validate = $this->validate( $license_info );
 
-		$api_url   = get_post_meta( $product->get_id(), '_updater_repo', true );
-		$api_token = get_post_meta( $product->get_id(), '_updater_api_token', true );
-
-		if (isset($params['tag']) && !empty($params['tag'])) {
-			$latest      = Github_API::request( $api_url, $api_token, 'releases/tags/' . $params['tag'] );
-			$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
-		} else {
-			
-			$latest      = Github_API::request( $api_url, $api_token, 'releases/latest' );
-			$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
-		}
-
-		$readme      = Github_API::request( $api_url, $api_token, 'readme' );
-		if ( is_wp_error($readme) ) {
-			return $output;
-			return new \WP_REST_Response( array( 'error' => 'Cannot read readme.' ), 400 );	
-		}
-		$readme_body = json_decode( $readme['body'] );
-
-		$readme_text = base64_decode( $readme_body->content );
-
-		$download_url = '';
+		// If it's valid, add the download_url
 		if ( $validate ) {
 			$download_url = get_rest_url() . 'license-updater/v1/download_update';
 			$download_url = add_query_arg( $license_info, $download_url );
 		}
 
 		$output = array(
-			'name'         => $product->get_name(),
+			'name'         => $post->post_name,
 			'version'      => $latest_info->tag_name,
 			'download_url' => $download_url,
 			'sections'     => array(
@@ -257,44 +395,6 @@ class REST_Endpoints {
 		);
 
 		return $output;
-	}
-
-	/**
-	 * Rest callback for activation.
-	 *
-	 * @param object $request The request object.
-	 */
-	public function activate( $request ) {
-		$activate     = false;
-		$license_info = $request->get_params();
-
-		switch ($license_info['action']) {
-			case 'deactivate':
-			$deactivate = Woocommerce_License_Updater::deactivate_license( $license_info );
-			if (!$deactivate) {
-					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );	
-			}
-			break;
-
-			case 'status':
-			$license = lmfwc_get_license( $license_info['license_key'] );
-			if ( ! $license ) {
-					return new \WP_REST_Response( array( 'error' => 'License key does not exist.' ), 400 );	
-			}
-			$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
-			if ( ! in_array( $license_info['site_url'], $installs, true ) ) {
-					return new \WP_REST_Response( array( 'error' => 'This website is not activated for this license.' ), 400 );	
-			}
-			break;
-
-			default: 
-			$activate = Woocommerce_License_Updater::activate_license( $license_info );
-			if (!$activate) {
-					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );	
-			}
-			break;
-		}
-		return $activate;
 	}
 
 	/**
@@ -320,14 +420,20 @@ class REST_Endpoints {
 	 */
 	public function validate_request( $license_info ) {
 
-		if ( strpos( $_SERVER['HTTP_USER_AGENT'], 'WordPress' ) === false ) {
-			return false;
+		$success = true;
+
+		if ( !is_user_logged_in(  )) {
+
+			if ( strpos( $_SERVER['HTTP_USER_AGENT'], 'WordPress' ) === false ) {
+				$success = false;
+			}
+
+			if ( strpos( $_SERVER['HTTP_USER_AGENT'], $license_info['site_url'] ) === false ) {
+				$success = false;
+			}
+			
 		}
 
-		if ( strpos( $_SERVER['HTTP_USER_AGENT'], $license_info['site_url'] ) === false ) {
-			return false;
-		}
-
-		return true;
+		return $success;
 	}
 }

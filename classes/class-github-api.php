@@ -1,5 +1,5 @@
 <?php
-namespace Woocomerce_License_Updater;
+namespace Premia;
 
 /**
  * Github API Class
@@ -15,16 +15,16 @@ class Github_API {
 	 * @param string $url The path to rewuest to.
 	 * @param array  $args a collection of arguments for wp_remote_get.
 	 */
-	public static function request( $api_url, $api_token, $url, $args = array() ) {
+	public static function request( $data, $url, $args = array() ) {
 		$args = wp_parse_args(
 			$args,
 			array(
 				'headers' => array(
-					'Authorization' => 'Bearer ' . $api_token,
+					'Authorization' => 'Bearer ' . $data['api_token'],
 				),
 			)
 		);
 
-		return wp_remote_get( $api_url . $url, $args );
+		return wp_remote_get( $data['api_url'] . $url, $args );
 	}
 }

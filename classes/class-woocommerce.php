@@ -1,5 +1,5 @@
 <?php
-namespace Woocomerce_License_Updater;
+namespace Premia;
 
 /**
  * Woocommerce class

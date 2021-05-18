@@ -1,31 +1,44 @@
 <?php
 /**
- * Woocommerce License Updater
+ * Premia
  *
- * @package           Woocommerce License Updater
+ * @package           Premia
  * @author            Conference7
  * @copyright         2021 Conference7
  *
  * @wordpress-plugin
- * Plugin Name:       Woocommerce License Updater
+ * Plugin Name:       Premia
  * Plugin URI:        https://mklasen.com
- * Description:       Woocommerce License Updater
+ * Description:       Premia
  * Version:           1.0
  * Requires at least: 5.2
  * Requires PHP:      7.2
  * Author:            Marinus Klasen
- * Author URI:        httsps://sympose.net
- * Text Domain:       woocommerce-license-updater
+ * Author URI:        https://getpremia.com
+ * Text Domain:       premia
  */
 
-namespace Woocomerce_License_Updater;
+namespace Premia;
+
+/** @todo
+ * Some thoughts:
+ * - Free updates should be possible
+ * - Custom Post Type for plugins
+ * - Basic license generation system
+ * - Default delivery is normal zip, if WordPress is detected: zip with subfolder
+ * - Save post meta in post types (remove woocommerce functions)
+ * - support for ex. add_action('{edd_purchase_completed}', 'atonly_attach_license');
+ * - support for ex. add_action('{gravity_form_submission_{id}}', 'atonly_attach_license');
+ * - prevent public access to tmp folder 
+ * - Setup a demo that continuously updates
+ */
 
 /**
  * WooCommerce License Updater
  *
  * @since 1.0
  */
-class Woocommerce_License_Updater {
+class Premia {
 
 	/**
 	 * Constructor function
@@ -82,4 +95,4 @@ class Woocommerce_License_Updater {
 
 require plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 
-$woocommerce_license_updater = new Woocommerce_License_Updater();
+$woocommerce_license_updater = new Premia();

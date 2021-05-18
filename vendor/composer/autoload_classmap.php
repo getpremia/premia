@@ -6,7 +6,7 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
-    'Woocomerce_License_Updater\\Github_API' => $baseDir . '/classes/class-github-api.php',
-    'Woocomerce_License_Updater\\REST_Endpoints' => $baseDir . '/classes/class-rest-endpoints.php',
-    'Woocomerce_License_Updater\\Woocommerce' => $baseDir . '/classes/class-woocommerce.php',
+    'Premia\\Github_API' => $baseDir . '/classes/class-github-api.php',
+    'Premia\\REST_Endpoints' => $baseDir . '/classes/class-rest-endpoints.php',
+    'Premia\\Woocommerce' => $baseDir . '/classes/class-woocommerce.php',
 );
