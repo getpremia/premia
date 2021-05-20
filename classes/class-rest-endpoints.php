@@ -96,14 +96,14 @@ class REST_Endpoints {
 
 		switch ( $action ) {
 			case 'deactivate':
-				$deactivate = Woocommerce_License_Updater::deactivate_license( $license_info );
+				$deactivate = Premia::deactivate_license( $license_info );
 				if ( ! $deactivate ) {
 					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
 				}
 				break;
 
 			case 'activate':
-				$activate = Woocommerce_License_Updater::activate_license( $license_info );
+				$activate = Premia::activate_license( $license_info );
 				if ( ! $activate ) {
 					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
 				}
@@ -172,7 +172,7 @@ class REST_Endpoints {
 		// Get the result.
 		$result = Github_API::request( $github_data, 'releases/latest' );
 
-		if ( is_wp_error($result) || wp_remote_retrieve_response_code( $result ) !== 200 ) {
+		if ( is_wp_error( $result ) || wp_remote_retrieve_response_code( $result ) !== 200 ) {
 			return new \WP_REST_Response( array( 'error' => 'Failed to communicate with Github.' ), 400 );
 		}
 
@@ -183,7 +183,7 @@ class REST_Endpoints {
 		$this->prepare_directories( $base_dir, $version );
 
 		// Get the ZIP.
-		$zip_url = str_replace( $github_data['api_url'], '', $body->zipball_url );
+		$zip_url   = str_replace( $github_data['api_url'], '', $body->zipball_url );
 		$file_path = $this->download_zip( $github_data, $zip_url, $base_dir );
 
 		$archive_path = $base_dir . 'tmp/zip/' . $version . '/' . $plugin_file;
@@ -196,7 +196,7 @@ class REST_Endpoints {
 
 		// Set the correct headers.
 
-		if (file_exists($archive_path)) {
+		if ( file_exists( $archive_path ) ) {
 			header( 'content-disposition: attachment; filename=' . $plugin_file );
 		}
 
@@ -335,64 +335,74 @@ class REST_Endpoints {
 	public function check_updates( $request ) {
 
 		$license_info = $request->get_params();
-		$download_url = '';
+
+		// Always show that there's new updates.
+		//$version = implode('.', str_split(floatval(str_replace('.', '', $license_info['installed_version'])) + 1));
+
+		$output = array(
+			'name'         => '',
+			'version'      => '0.1',
+			'download_url' => '',
+			'sections'     => array(
+				'description' => '',
+			),
+		);
 
 		if (!isset($license_info['plugin']) || empty($license_info['plugin'])) {
-			return new \WP_REST_Response( array( 'error' => 'No plugin provided.' ), 400 );
+			$output['name'] = 'No plugin provided';
+		}
+
+		if ( ! isset( $license_info['license_key'] ) || ! isset( $license_info['site_url'] ) || ! isset( $license_info['plugin'] ) ) {
+			$output['name'] = 'License information incomplete.';
+		}
+
+		if ( ! $this->validate_request( $license_info ) ) {
+			$output['name'] = 'Cannot validate request.';
 		}
 		
 		$post = get_post( get_page_by_path( $license_info['plugin'], OBJECT, 'product' ) );
 
 		if (is_wp_error($post) || !$post) {
-			return new \WP_REST_Response( array( 'error' => 'The plugin can not be found.' ), 400 );
-		}
-
-		if ( ! isset( $license_info['license_key'] ) || ! isset( $license_info['site_url'] ) || ! isset( $license_info['plugin'] ) ) {
-			return new \WP_REST_Response( array( 'error' => 'Missing parameters.' ), 400 );
-		}
-
-		if ( ! $this->validate_request( $license_info ) ) {
-			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
-		}
-
-		$github_data = $this->get_github_data( $post->ID );
-
-		if (isset($license_info['tag']) && !empty($license_info['tag'])) {
-			$latest      = Github_API::request( $github_data, 'releases/tags/' . $license_info['tag'] );
+			$output['name'] = 'Plugin cannot be found.';
 		} else {
-			$latest      = Github_API::request( $github_data, 'releases/latest' );
+			$output['name'] = $post->post_title;
+
+			$github_data = $this->get_github_data( $post->ID );
+
+			if (isset($license_info['tag']) && !empty($license_info['tag'])) {
+				$latest      = Github_API::request( $github_data, 'releases/tags/' . $license_info['tag'] );
+			} else {
+				$latest      = Github_API::request( $github_data, 'releases/latest' );
+			}
+
+			if ( is_wp_error($latest) || wp_remote_retrieve_response_code( $latest ) !== 200 ) {
+				$output['name'] = 'Failed to get the latest version information.';
+				return $output;
+			}
+
+			$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
+
+			$output['version'] = $latest_info->tag_name;
+
+			$output['sections']['description'] = $latest_info->body;
+
+			if (empty($output['sections']['description'])) {
+				$output['sections']['description'] = '<p>This release contains version '.$output['version'].' of the '.$output['name'].' plugin</p>';
+			}
+
+			// Validate the license
+			$validate = $this->validate( $license_info );
+
+			// If it's valid, add the download_url
+			if ( $validate ) {
+				$download_url = get_rest_url() . 'license-updater/v1/download_update';
+				$download_url = add_query_arg( $license_info, $download_url );
+				$output['download_url'] = $download_url;
+			}
+
 		}
 
-		if ( is_wp_error($latest) || wp_remote_retrieve_response_code( $latest ) !== 200 ) {
-			return new \WP_REST_Response( array( 'error' => 'Failed to communicate with Github.' ), 400 );
-		}
-
-		$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
-
-		$readme_text = '';
-		$readme      = Github_API::request( $github_data, 'readme' );
-		if ( ! is_wp_error($readme) && wp_remote_retrieve_response_code( $readme ) === 200 ) {
-			$readme_body = json_decode( $readme['body'] );
-			$readme_text = base64_decode( $readme_body->content );	
-		}
-
-		// Validate the license
-		$validate = $this->validate( $license_info );
-
-		// If it's valid, add the download_url
-		if ( $validate ) {
-			$download_url = get_rest_url() . 'license-updater/v1/download_update';
-			$download_url = add_query_arg( $license_info, $download_url );
-		}
-
-		$output = array(
-			'name'         => $post->post_name,
-			'version'      => $latest_info->tag_name,
-			'download_url' => $download_url,
-			'sections'     => array(
-				'description' => $readme_text,
-			),
-		);
+		error_log(print_r($output, true));
 
 		return $output;
 	}

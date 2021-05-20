@@ -96,7 +96,7 @@ class Woocommerce {
 				$license_key = sanitize_text_field( $_GET['license_key'] );
 
 				if ( $action === 'deactivate' ) {
-					$deactivate = Woocommerce_License_Updater::deactivate_license(
+					$deactivate = Premia::deactivate_license(
 						array(
 							'license_key' => $license_key,
 							'site_url'    => $site_url,
