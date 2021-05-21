@@ -96,14 +96,14 @@ class REST_Endpoints {
 
 		switch ( $action ) {
 			case 'deactivate':
-				$deactivate = Premia::deactivate_license( $license_info );
+				$deactivate = Woocommerce_License_Manager::deactivate( $license_info );
 				if ( ! $deactivate ) {
 					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
 				}
 				break;
 
 			case 'activate':
-				$activate = Premia::activate_license( $license_info );
+				$activate = Woocommerce_License_Manager::activate( $license_info );
 				if ( ! $activate ) {
 					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
 				}
@@ -171,7 +171,7 @@ class REST_Endpoints {
 			return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
 		}
 
-		$github_data = $this->get_github_data( $post->ID );	
+		$github_data = $this->get_github_data( $post->ID );
 
 		// Can't authenticate? bail.
 		if ( empty( $github_data['api_url'] ) || empty( $github_data['api_token'] ) ) {
