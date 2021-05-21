@@ -19,30 +19,37 @@ class Custom_Fields {
 		add_action( 'save_post', array( $this, 'update_fields' ) );
 
 		add_filter( 'premia_update_field', array( $this, 'replace_github_url' ) );
+		add_filter( 'premia_update_field', array( $this, 'do_not_validate' ), 10, 3 );
 	}
 
-	public function get_fields() {
+	public static function get_fields() {
 		$doc_generate_url = 'https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token';
 		$doc_bot_url      = 'https://docs.github.com/en/github/getting-started-with-github/learning-about-github/types-of-github-accounts';
-		return array(
+		return apply_filters(
+			'premia_customize_fields',
 			array(
-				'name'  => '_updater_repo',
-				'label' => __( 'Github API URL', 'premia' ),
-				'desc'  => __( 'You can also paste the URL to your Github Repo', 'premia' ),
-				'type'  => 'text',
-			),
-			array(
-				'name'  => '_updater_api_token',
-				'type'  => 'password',
-				'label' => __( 'Github API Key', 'premia' ),
-				'desc'  => sprintf( __( '%1$sCreating a personal access token%2$s - %3$sTypes of Github accounts%4$s.', 'premia' ), '<a href="' . $doc_generate_url . '">', '</a>', '<a href="' . $doc_bot_url . '">', '</a>' ),
-			),
-			array(
-				'name'  => '_updater_do_not_validate_licenses',
-				'type'  => 'checkbox',
-				'label' => __( 'Do not validate licenses', 'premia' ),
-				'desc'  => __( 'When enabling this option, license checks are disabled.', 'premia' ),
-			),
+				array(
+					'name'    => '_updater_repo',
+					'label'   => __( 'Github API URL', 'premia' ),
+					'desc'    => __( 'You can also paste the URL to your Github Repo', 'premia' ),
+					'type'    => 'text',
+					'visible' => true,
+				),
+				array(
+					'name'    => '_updater_api_token',
+					'type'    => 'password',
+					'label'   => __( 'Github API Key', 'premia' ),
+					'desc'    => sprintf( __( '%1$sCreating a personal access token%2$s - %3$sTypes of Github accounts%4$s.', 'premia' ), '<a href="' . $doc_generate_url . '">', '</a>', '<a href="' . $doc_bot_url . '">', '</a>' ),
+					'visible' => true,
+				),
+				array(
+					'name'    => '_updater_do_not_validate_licenses',
+					'type'    => 'checkbox',
+					'label'   => __( 'Do not validate licenses', 'premia' ),
+					'desc'    => __( 'When enabling this option, license checks are disabled.', 'premia' ),
+					'visible' => false,
+				),
+			)
 		);
 	}
 
@@ -53,22 +60,24 @@ class Custom_Fields {
 	public function render_fields( $post ) {
 		$fields = $this->get_fields();
 		foreach ( $fields as $field ) {
-			echo '<div>';
-			switch ( $field['type'] ) {
-				case 'checkbox':
-					$checked = ( get_post_meta( $post->ID, $field['name'], true ) === 'on' ? ' checked="checked"' : '' );
-					echo '<label for="' . $field['name'] . '">';
-					echo '<input id="' . $field['name'] . '" type="' . $field['type'] . '" name="' . $field['name'] . '" ' . $checked . ' />';
-					echo $field['label'];
-					echo '</label>';
-					break;
-				default:
-					echo '<label for="' . $field['name'] . '">' . $field['label'] . '</label><br/>';
-					echo '<input id="' . $field['name'] . '" type="' . $field['type'] . '" name="' . $field['name'] . '" value="' . get_post_meta( $post->ID, $field['name'], true ) . '" />';
-					echo '<div><i>' . $field['desc'] . '</i></div>';
-					break;
+			if ( $field['visible'] === true ) {
+				echo '<div>';
+				switch ( $field['type'] ) {
+					case 'checkbox':
+						$checked = ( get_post_meta( $post->ID, $field['name'], true ) === 'on' ? ' checked="checked"' : '' );
+						echo '<label for="' . $field['name'] . '">';
+						echo '<input id="' . $field['name'] . '" type="' . $field['type'] . '" name="' . $field['name'] . '" ' . $checked . ' />';
+						echo $field['label'];
+						echo '</label>';
+						break;
+					default:
+						echo '<label for="' . $field['name'] . '">' . $field['label'] . '</label><br/>';
+						echo '<input id="' . $field['name'] . '" type="' . $field['type'] . '" name="' . $field['name'] . '" value="' . get_post_meta( $post->ID, $field['name'], true ) . '" />';
+						echo '<div><i>' . $field['desc'] . '</i></div>';
+						break;
+				}
+				echo '</div><br/>';
 			}
-			echo '</div><br/>';
 		}
 	}
 
@@ -77,15 +86,26 @@ class Custom_Fields {
 		$fields = $this->get_fields();
 
 		foreach ( $fields as $field ) {
-			$value = apply_filters( 'premia_update_field', sanitize_text_field( $_POST[ $field['name'] ] ), $post_id );
-			update_post_meta( $post_id, $field['name'], $value );
+			if ( isset( $_POST[ $field['name'] ] ) ) {
+				$value = apply_filters( 'premia_update_field', sanitize_text_field( $_POST[ $field['name'] ] ), $field, $post_id );
+				update_post_meta( $post_id, $field['name'], $value );
+			}
 		}
 	}
 
-	public function replace_github_url( $value ) {
+	public static function replace_github_url( $value ) {
 		if ( strpos( $value, 'github.com' ) !== false && strpos( $value, 'api.github.com' ) === false ) {
 			$value = rtrim( sanitize_text_field( $value ), '/' );
 			$value = str_replace( 'github.com', 'api.github.com/repos', $value );
+		}
+		return $value;
+	}
+
+	public function do_not_validate( $value, $field, $post_id ) {
+		if ( get_post_type( $post_id ) !== 'product' ) {
+			if ( $field['name'] === '_updater_do_not_validate_licenses' ) {
+				$value = 'on';
+			}
 		}
 		return $value;
 	}
