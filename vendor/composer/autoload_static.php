@@ -4,10 +4,11 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInita53afc6b3cd4c92217e9468c9af1b3e0
+class ComposerStaticInitda3e785a243469b646d29154152de59f
 {
     public static $classMap = array (
         'Premia\\Github_API' => __DIR__ . '/../..' . '/classes/class-github-api.php',
+        'Premia\\Licenses' => __DIR__ . '/../..' . '/classes/class-licenses.php',
         'Premia\\REST_Endpoints' => __DIR__ . '/../..' . '/classes/class-rest-endpoints.php',
         'Premia\\Woocommerce' => __DIR__ . '/../..' . '/classes/class-woocommerce.php',
     );
@@ -15,7 +16,7 @@ class ComposerStaticInita53afc6b3cd4c92217e9468c9af1b3e0
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->classMap = ComposerStaticInita53afc6b3cd4c92217e9468c9af1b3e0::$classMap;
+            $loader->classMap = ComposerStaticInitda3e785a243469b646d29154152de59f::$classMap;
 
         }, null, ClassLoader::class);
     }

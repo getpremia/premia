@@ -7,6 +7,7 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Premia\\Github_API' => $baseDir . '/classes/class-github-api.php',
+    'Premia\\Licenses' => $baseDir . '/classes/class-licenses.php',
     'Premia\\REST_Endpoints' => $baseDir . '/classes/class-rest-endpoints.php',
     'Premia\\Woocommerce' => $baseDir . '/classes/class-woocommerce.php',
 );

@@ -41,6 +41,7 @@ class Premia {
 		new Woocommerce();
 		new Github_API();
 		new REST_Endpoints();
+		new Licenses();
 	}
 
 	/**
@@ -82,4 +83,4 @@ class Premia {
 
 require plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 
-$woocommerce_license_updater = new Premia();
+$premia = new Premia();
