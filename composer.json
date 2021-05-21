@@ -9,7 +9,8 @@
     "require": {},
     "autoload": {
         "classmap": [
-            "classes"
+            "classes",
+            "integrations"
         ]
     }
 }

@@ -10,5 +10,6 @@ return array(
     'Premia\\Github_API' => $baseDir . '/classes/class-github-api.php',
     'Premia\\REST_Endpoints' => $baseDir . '/classes/class-rest-endpoints.php',
     'Premia\\Shortcodes' => $baseDir . '/classes/class-shortcodes.php',
-    'Premia\\Woocommerce' => $baseDir . '/classes/class-woocommerce.php',
+    'Premia\\Woocommerce' => $baseDir . '/integrations/class-woocommerce.php',
+    'Premia\\Woocommerce_License_Manager' => $baseDir . '/integrations/class-woocommerce-license-manager.php',
 );

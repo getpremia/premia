@@ -11,7 +11,8 @@ class ComposerStaticInita53afc6b3cd4c92217e9468c9af1b3e0
         'Premia\\Github_API' => __DIR__ . '/../..' . '/classes/class-github-api.php',
         'Premia\\REST_Endpoints' => __DIR__ . '/../..' . '/classes/class-rest-endpoints.php',
         'Premia\\Shortcodes' => __DIR__ . '/../..' . '/classes/class-shortcodes.php',
-        'Premia\\Woocommerce' => __DIR__ . '/../..' . '/classes/class-woocommerce.php',
+        'Premia\\Woocommerce' => __DIR__ . '/../..' . '/integrations/class-woocommerce.php',
+        'Premia\\Woocommerce_License_Manager' => __DIR__ . '/../..' . '/integrations/class-woocommerce-license-manager.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
