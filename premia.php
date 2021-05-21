@@ -20,19 +20,6 @@
 
 namespace Premia;
 
-/** @todo
- * Some thoughts:
- * - Free updates should be possible
- * - Custom Post Type for plugins
- * - Basic license generation system
- * - Default delivery is normal zip, if WordPress is detected: zip with subfolder
- * - Save post meta in post types (remove woocommerce functions)
- * - support for ex. add_action('{edd_purchase_completed}', 'atonly_attach_license');
- * - support for ex. add_action('{gravity_form_submission_{id}}', 'atonly_attach_license');
- * - prevent public access to tmp folder 
- * - Setup a demo that continuously updates
- */
-
 /**
  * WooCommerce License Updater
  *
