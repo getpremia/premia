@@ -43,45 +43,11 @@ class Premia {
 		new REST_Endpoints();
 		new Custom_Fields();
 		new Shortcodes();
-	}
-
-	/**
-	 * Deactivate the license
-	 *
-	 * @param array $license_info An array with license information.
-	 */
-	public static function deactivate_license( $license_info ) {
-		$license = lmfwc_get_license( $license_info['license_key'] );
-		if ( ! $license ) {
-			return false;
-		}
-		if ( $license->getTimesActivated() > 0 ) {
-			lmfwc_deactivate_license( $license->getDecryptedLicenseKey() );
-		}
-		lmfwc_delete_license_meta( $license->getId(), 'installations', $license_info['site_url'] );
-		return true;
-	}
-
-	/**
-	 * Activate the license
-	 *
-	 * @param array $license_info An array with license information.
-	 */
-	public static function activate_license( $license_info ) {
-		$license = lmfwc_get_license( $license_info['license_key'] );
-		if ( ! $license ) {
-			return false;
-		}
-		$activate = lmfwc_activate_license( $license_info['license_key'] );
-		$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
-		if ( ! in_array( $license_info['site_url'], $installs, true ) ) {
-			$activate = lmfwc_add_license_meta( $license->getId(), 'installations', $license_info['site_url'] );
-		}
-		return true;
+		new Woocommerce_License_Manager();
 	}
 
 }
 
 require plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 
-$woocommerce_license_updater = new Premia();
+$premia = new Premia();
