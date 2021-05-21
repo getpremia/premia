@@ -34,7 +34,12 @@ class Woocommerce {
 	 */
 	public function save_wc_product_data_panel( $post_id ) {
 		$product = wc_get_product( $post_id );
-		$product->update_meta_data( '_updater_repo', sanitize_text_field( $_POST['_updater_repo'] ) );
+
+		$repo = sanitize_text_field( $_POST['_updater_repo'] );
+		if ( strpos( $repo, 'api.github.com' ) === false ) {
+			$repo = str_replace( 'github.com', 'api.github.com/repos', $repo );
+		}
+		$product->update_meta_data( '_updater_repo', $repo );
 		$product->update_meta_data( '_updater_api_token', sanitize_text_field( $_POST['_updater_api_token'] ) );
 		$product->save();
 	}
@@ -50,14 +55,20 @@ class Woocommerce {
 			array(
 				'id'            => '_updater_repo',
 				'label'         => __( 'Github API URL', 'woocommerce-license-updater' ),
+				'description'   => __( 'You can also paste the URL to your Github Repo', 'woocommerce-license-updater' ),
 				'wrapper_class' => 'show_if_simple',
 			)
 		);
+
+		$doc_generate_url = 'https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token';
+		$doc_bot_url      = 'https://docs.github.com/en/github/getting-started-with-github/learning-about-github/types-of-github-accounts';
 
 		woocommerce_wp_text_input(
 			array(
 				'id'            => '_updater_api_token',
 				'label'         => __( 'Github API Key', 'woocommerce-license-updater' ),
+				'description'   => sprintf( __( '%1$sCreating a personal access token%2$s - %3$sTypes of Github accounts%4$s.', 'premia' ), '<a href="' . $doc_generate_url . '">', '</a>', '<a href="' . $doc_bot_url . '">', '</a>' ),
+				'woocommerce-license-updater',
 				'wrapper_class' => 'show_if_simple',
 				'type'          => 'password',
 			)
