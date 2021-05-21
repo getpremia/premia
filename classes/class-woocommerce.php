@@ -35,12 +35,15 @@ class Woocommerce {
 	public function save_wc_product_data_panel( $post_id ) {
 		$product = wc_get_product( $post_id );
 
-		$repo = sanitize_text_field( $_POST['_updater_repo'] );
+		$repo = rtrim( sanitize_text_field( $_POST['_updater_repo'] ), '/' );
+
 		if ( strpos( $repo, 'api.github.com' ) === false ) {
 			$repo = str_replace( 'github.com', 'api.github.com/repos', $repo );
 		}
+
 		$product->update_meta_data( '_updater_repo', $repo );
 		$product->update_meta_data( '_updater_api_token', sanitize_text_field( $_POST['_updater_api_token'] ) );
+		$product->update_meta_data( '_updater_do_not_validate_licenses', sanitize_text_field( $_POST['_updater_do_not_validate_licenses'] ) );
 		$product->save();
 	}
 
@@ -71,6 +74,15 @@ class Woocommerce {
 				'woocommerce-license-updater',
 				'wrapper_class' => 'show_if_simple',
 				'type'          => 'password',
+			)
+		);
+
+		woocommerce_wp_checkbox(
+			array(
+				'id'          => '_updater_do_not_validate_licenses',
+				'label'       => __( 'Do not validate licenses', 'woocommerce' ),
+				'description' => __( 'When enabling this option, license checks are disabled.', 'woocommerce' ),
+				'value'       => get_post_meta( get_the_ID(), '_updater_do_not_validate_licenses', true ),
 			)
 		);
 

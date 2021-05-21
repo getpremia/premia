@@ -148,8 +148,9 @@ class REST_Endpoints {
 		}
 
 		// Get the post that contains information about this download.
-		$page_id = get_page_by_path( $license_info['plugin'], OBJECT, 'product' );
-		$product = wc_get_product( $page_id );
+		$page = get_page_by_path( $license_info['plugin'], OBJECT, 'product' );
+
+		$product = wc_get_product( $page->ID );
 
 		// Build the plugin file name from the slug.
 		$plugin_file = $product->get_slug() . '.zip';
@@ -157,8 +158,10 @@ class REST_Endpoints {
 		// Validate the license info.
 		$validate = $this->validate( $license_info );
 
+		$do_not_validate = get_post_meta( $page->ID, '_updater_do_not_validate_licenses', true );
+
 		// Can't validate? bail.
-		if ( ! $validate ) {
+		if ( ! $validate && $do_not_validate !== 'yes' ) {
 			return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
 		}
 
@@ -170,7 +173,7 @@ class REST_Endpoints {
 		}
 
 		// Get the result.
-		$result = Github_API::request( $github_data, 'releases/latest' );
+		$result = Github_API::request( $github_data, '/releases/latest' );
 
 		if ( is_wp_error( $result ) || wp_remote_retrieve_response_code( $result ) !== 200 ) {
 			return new \WP_REST_Response( array( 'error' => 'Failed to communicate with Github.' ), 400 );
@@ -370,34 +373,33 @@ class REST_Endpoints {
 			$github_data = $this->get_github_data( $post->ID );
 
 			if (isset($license_info['tag']) && !empty($license_info['tag'])) {
-				$latest      = Github_API::request( $github_data, 'releases/tags/' . $license_info['tag'] );
+				$latest      = Github_API::request( $github_data, '/releases/tags/' . $license_info['tag'] );
 			} else {
-				$latest      = Github_API::request( $github_data, 'releases/latest' );
+				$latest      = Github_API::request( $github_data, '/releases/latest' );
 			}
 
-			if ( is_wp_error($latest) || wp_remote_retrieve_response_code( $latest ) !== 200 ) {
+			if ( ! is_wp_error($latest) && wp_remote_retrieve_response_code( $latest ) === 200 ) {
+				$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
+				$output['version'] = $latest_info->tag_name;
+				$output['sections']['description'] = $latest_info->body;
+			} else {
 				$output['name'] = 'Failed to get the latest version information.';
-				return $output;
 			}
-
-			$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
-
-			$output['version'] = $latest_info->tag_name;
-
-			$output['sections']['description'] = $latest_info->body;
 
 			if (empty($output['sections']['description'])) {
 				$output['sections']['description'] = '<p>This release contains version '.$output['version'].' of the '.$output['name'].' plugin</p>';
 			}
 
-			// Validate the license
-			$validate = $this->validate( $license_info );
+			$download_url = add_query_arg( $license_info, get_rest_url() . 'license-updater/v1/download_update' );
+			$do_not_validate = get_post_meta($post->ID, '_updater_do_not_validate_licenses', true);
 
-			// If it's valid, add the download_url
-			if ( $validate ) {
-				$download_url = get_rest_url() . 'license-updater/v1/download_update';
-				$download_url = add_query_arg( $license_info, $download_url );
+			if ($do_not_validate === 'yes') {
 				$output['download_url'] = $download_url;
+			} else {
+				$validate = $this->validate( $license_info );
+				if ( $validate ) {
+					$output['download_url'] = $download_url;
+				}
 			}
 
 		}
