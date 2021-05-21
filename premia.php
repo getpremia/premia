@@ -41,6 +41,8 @@ class Premia {
 		new Woocommerce();
 		new Github_API();
 		new REST_Endpoints();
+		new Custom_Fields();
+		new Shortcodes();
 	}
 
 	/**

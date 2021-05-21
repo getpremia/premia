@@ -147,31 +147,36 @@ class REST_Endpoints {
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
 		}
 
-		// Get the post that contains information about this download.
-		$page = get_page_by_path( $license_info['plugin'], OBJECT, 'product' );
+		if ( is_user_logged_in() && isset( $license_info['post_id'] ) ) {
+			$post = get_post( intval( $license_info['post_id'] ) );
+		} else {
+			// Get the post that contains information about this download.
+			$post = get_page_by_path( $license_info['plugin'], OBJECT, 'product' );
+		}
 
-		$product = wc_get_product( $page->ID );
+		if ( is_wp_error( $post ) ) {
+			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
+		}
 
 		// Build the plugin file name from the slug.
-		$plugin_file = $product->get_slug() . '.zip';
+		$plugin_file = $post->post_name . '.zip';
 
 		// Validate the license info.
 		$validate = $this->validate( $license_info );
 
-		$do_not_validate = get_post_meta( $page->ID, '_updater_do_not_validate_licenses', true );
+		$do_not_validate = get_post_meta( $post->ID, '_updater_do_not_validate_licenses', true );
 
 		// Can't validate? bail.
-		if ( ! $validate && $do_not_validate !== 'yes' ) {
+		if ( ! $validate && $do_not_validate !== 'on' ) {
 			return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
 		}
 
-		$github_data = $this->get_github_data( $product->get_id() );
+		$github_data = $this->get_github_data( $post->ID );	
 
 		// Can't authenticate? bail.
 		if ( empty( $github_data['api_url'] ) || empty( $github_data['api_token'] ) ) {
 			return new \WP_REST_Response( array( 'error' => 'No API URL and token provided.' ), 400 );
 		}
-
 		// Get the result.
 		$result = Github_API::request( $github_data, '/releases/latest' );
 
@@ -194,7 +199,7 @@ class REST_Endpoints {
 		// If the ZIP does not exist, generate it.
 		// @todo Maybe check the modified time of the file, if older then (plugin settings option) then..
 		if ( ! is_file( $archive_path ) || ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ) {
-			$archive_path = $this->generate_zip( $base_dir, $version, $archive_path, $product->get_slug(), $file_path );
+			$archive_path = $this->generate_zip( $base_dir, $version, $archive_path, $post->post_name, $file_path );
 		}
 
 		// Set the correct headers.
@@ -393,7 +398,7 @@ class REST_Endpoints {
 			$download_url = add_query_arg( $license_info, get_rest_url() . 'license-updater/v1/download_update' );
 			$do_not_validate = get_post_meta($post->ID, '_updater_do_not_validate_licenses', true);
 
-			if ($do_not_validate === 'yes') {
+			if ($do_not_validate === 'on') {
 				$output['download_url'] = $download_url;
 			} else {
 				$validate = $this->validate( $license_info );
@@ -404,8 +409,6 @@ class REST_Endpoints {
 
 		}
 
-		error_log(print_r($output, true));
-
 		return $output;
 	}
 
@@ -415,6 +418,9 @@ class REST_Endpoints {
 	 * @return boolean true or false.
 	 */
 	public function validate( $license_info ) {
+		if (!isset($license_info['license_key'])) {
+			return false;
+		}
 		$license  = lmfwc_get_license( $license_info['license_key'] );
 
 		if ($license !== false) {

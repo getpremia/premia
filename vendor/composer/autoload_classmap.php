@@ -6,7 +6,9 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
+    'Premia\\Custom_Fields' => $baseDir . '/classes/class-custom-fields.php',
     'Premia\\Github_API' => $baseDir . '/classes/class-github-api.php',
     'Premia\\REST_Endpoints' => $baseDir . '/classes/class-rest-endpoints.php',
+    'Premia\\Shortcodes' => $baseDir . '/classes/class-shortcodes.php',
     'Premia\\Woocommerce' => $baseDir . '/classes/class-woocommerce.php',
 );

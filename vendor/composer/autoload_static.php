@@ -7,8 +7,10 @@ namespace Composer\Autoload;
 class ComposerStaticInita53afc6b3cd4c92217e9468c9af1b3e0
 {
     public static $classMap = array (
+        'Premia\\Custom_Fields' => __DIR__ . '/../..' . '/classes/class-custom-fields.php',
         'Premia\\Github_API' => __DIR__ . '/../..' . '/classes/class-github-api.php',
         'Premia\\REST_Endpoints' => __DIR__ . '/../..' . '/classes/class-rest-endpoints.php',
+        'Premia\\Shortcodes' => __DIR__ . '/../..' . '/classes/class-shortcodes.php',
         'Premia\\Woocommerce' => __DIR__ . '/../..' . '/classes/class-woocommerce.php',
     );
 
