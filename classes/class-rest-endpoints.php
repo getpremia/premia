@@ -376,13 +376,11 @@ class REST_Endpoints {
 		
 		if (isset($license_info['plugin']) && !empty($license_info['plugin'])) { 
 	
-			$posts = get_post(array(
+			$post = get_post(array(
 				'post_type' => array('post', 'page', 'product'),
 				'post_status' => 'publish',
 				'post_name' => $license_info['plugin']
 			));
-
-			$post = reset($posts);
 
 			if (is_wp_error($post) || !$post) {
 				$output['name'] = 'Plugin cannot be found.';
