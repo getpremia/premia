@@ -113,11 +113,11 @@ class REST_Endpoints {
 				return new \WP_REST_Response( array( 'error' => 'No action provided.' ), 400 );
 				// $license = Licenses::get_license( $license_info );
 				// if ( ! $license ) {
-				// 	return new \WP_REST_Response( array( 'error' => 'License key does not exist.' ), 400 );
+				// return new \WP_REST_Response( array( 'error' => 'License key does not exist.' ), 400 );
 				// }
 				// $installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
 				// if ( ! in_array( $license_info['site_url'], $installs, true ) ) {
-				// 	return new \WP_REST_Response( array( 'error' => 'This website is not activated for this license.' ), 400 );
+				// return new \WP_REST_Response( array( 'error' => 'This website is not activated for this license.' ), 400 );
 				// }
 				break;
 		}
@@ -199,7 +199,7 @@ class REST_Endpoints {
 
 		// If the ZIP does not exist, generate it.
 		// @todo Maybe check the modified time of the file, if older then (plugin settings option) then..
-		// @todo use the file name of the github repo, not from wordpress post/product..
+		// @todo use the file name of the github repo, not from WordPress post/product..
 		if ( ! is_file( $archive_path ) || ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ) {
 			$archive_path = $this->generate_zip( $base_dir, $version, $archive_path, $post->post_name, $file_path );
 		}
@@ -370,45 +370,48 @@ class REST_Endpoints {
 			$output['name'] = 'Cannot validate request.';
 		}
 		
-		$post = get_post( get_page_by_path( $license_info['plugin'], OBJECT, 'product' ) );
+		if (isset($license_info['plugin']) && !empty($license_info['plugin'])) { 
+		
+			$post = get_post( get_page_by_path( $license_info['plugin'], OBJECT, 'product' ) );
 
-		if (is_wp_error($post) || !$post) {
-			$output['name'] = 'Plugin cannot be found.';
-		} else {
-			$output['name'] = $post->post_title;
-
-			$github_data = $this->get_github_data( $post->ID );
-
-			if (isset($license_info['tag']) && !empty($license_info['tag'])) {
-				$latest      = Github_API::request( $github_data, '/releases/tags/' . $license_info['tag'] );
+			if (is_wp_error($post) || !$post) {
+				$output['name'] = 'Plugin cannot be found.';
 			} else {
-				$latest      = Github_API::request( $github_data, '/releases/latest' );
-			}
+				$output['name'] = $post->post_title;
 
-			if ( ! is_wp_error($latest) && wp_remote_retrieve_response_code( $latest ) === 200 ) {
-				$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
-				$output['version'] = $latest_info->tag_name;
-				$output['sections']['description'] = $latest_info->body;
-			} else {
-				$output['name'] = 'Failed to get the latest version information.';
-			}
+				$github_data = $this->get_github_data( $post->ID );
 
-			if (empty($output['sections']['description'])) {
-				$output['sections']['description'] = '<p>This release contains version '.$output['version'].' of the '.$output['name'].' plugin</p>';
-			}
-
-			$download_url = add_query_arg( $license_info, get_rest_url() . 'license-updater/v1/download_update' );
-			$do_not_validate = get_post_meta($post->ID, '_updater_do_not_validate_licenses', true);
-
-			if ($do_not_validate === 'on') {
-				$output['download_url'] = $download_url;
-			} else {
-				$validate = $this->validate( $license_info );
-				if ( $validate ) {
-					$output['download_url'] = $download_url;
+				if (isset($license_info['tag']) && !empty($license_info['tag'])) {
+					$latest      = Github_API::request( $github_data, '/releases/tags/' . $license_info['tag'] );
+				} else {
+					$latest      = Github_API::request( $github_data, '/releases/latest' );
 				}
-			}
 
+				if ( ! is_wp_error($latest) && wp_remote_retrieve_response_code( $latest ) === 200 ) {
+					$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
+					$output['version'] = $latest_info->tag_name;
+					$output['sections']['description'] = $latest_info->body;
+				} else {
+					$output['name'] = 'Failed to get the latest version information.';
+				}
+
+				if (empty($output['sections']['description'])) {
+					$output['sections']['description'] = '<p>This release contains version '.$output['version'].' of the '.$output['name'].' plugin</p>';
+				}
+
+				$download_url = add_query_arg( $license_info, get_rest_url() . 'license-updater/v1/download_update' );
+				$do_not_validate = get_post_meta($post->ID, '_updater_do_not_validate_licenses', true);
+
+				if ($do_not_validate === 'on') {
+					$output['download_url'] = $download_url;
+				} else {
+					$validate = $this->validate( $license_info );
+					if ( $validate ) {
+						$output['download_url'] = $download_url;
+					}
+				}
+
+			}
 		}
 
 		return $output;
@@ -448,7 +451,7 @@ class REST_Endpoints {
 				$success = false;
 			}
 
-			if ( strpos( $_SERVER['HTTP_USER_AGENT'], $license_info['site_url'] ) === false ) {
+			if ( isset($license_info['site_url']) && strpos( $_SERVER['HTTP_USER_AGENT'], $license_info['site_url'] ) === false ) {
 				$success = false;
 			}
 			
