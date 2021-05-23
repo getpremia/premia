@@ -96,28 +96,29 @@ class REST_Endpoints {
 
 		switch ( $action ) {
 			case 'deactivate':
-				$deactivate = Woocommerce_License_Manager::deactivate( $license_info );
+				$deactivate = Licenses::deactivate( $license_info );
 				if ( ! $deactivate ) {
 					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
 				}
 				break;
 
 			case 'activate':
-				$activate = Woocommerce_License_Manager::activate( $license_info );
+				$activate = Licenses::activate( $license_info );
 				if ( ! $activate ) {
 					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
 				}
 				break;
 
 			default:
-				$license = lmfwc_get_license( $license_info['license_key'] );
-				if ( ! $license ) {
-					return new \WP_REST_Response( array( 'error' => 'License key does not exist.' ), 400 );
-				}
-				$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
-				if ( ! in_array( $license_info['site_url'], $installs, true ) ) {
-					return new \WP_REST_Response( array( 'error' => 'This website is not activated for this license.' ), 400 );
-				}
+				return new \WP_REST_Response( array( 'error' => 'No action provided.' ), 400 );
+				// $license = Licenses::get_license( $license_info );
+				// if ( ! $license ) {
+				// 	return new \WP_REST_Response( array( 'error' => 'License key does not exist.' ), 400 );
+				// }
+				// $installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
+				// if ( ! in_array( $license_info['site_url'], $installs, true ) ) {
+				// 	return new \WP_REST_Response( array( 'error' => 'This website is not activated for this license.' ), 400 );
+				// }
 				break;
 		}
 		return $activate;
@@ -198,6 +199,7 @@ class REST_Endpoints {
 
 		// If the ZIP does not exist, generate it.
 		// @todo Maybe check the modified time of the file, if older then (plugin settings option) then..
+		// @todo use the file name of the github repo, not from wordpress post/product..
 		if ( ! is_file( $archive_path ) || ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ) {
 			$archive_path = $this->generate_zip( $base_dir, $version, $archive_path, $post->post_name, $file_path );
 		}

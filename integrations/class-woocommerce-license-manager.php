@@ -13,9 +13,10 @@ class Woocommerce_License_Manager {
 	}
 
 	public function init() {
-		if ( class_exists( 'LicenseManagerForWooCommerce\Main' ) ) {
-			add_action( 'woocommerce_account_view-license-keys_endpoint', array( $this, 'manage_installs' ), 20 );
-		}
+		add_action( 'woocommerce_account_view-license-keys_endpoint', array( $this, 'manage_installs' ), 20 );
+		add_filter( 'premia_activate_license', array( $this, 'activate' ) );
+		add_filter( 'premia_deactivate_license', array( $this, 'deactivate' ) );
+		add_filter( 'premia_get_license', array( $this, 'get_license' ) );
 	}
 
 	/**
@@ -98,5 +99,9 @@ class Woocommerce_License_Manager {
 			$activate = lmfwc_add_license_meta( $license->getId(), 'installations', $license_info['site_url'] );
 		}
 		return true;
+	}
+
+	public function get_license( $license_info ) {
+		return lmfwc_get_license( $license_info['license_key'] );
 	}
 }

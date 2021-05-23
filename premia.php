@@ -38,12 +38,19 @@ class Premia {
 	 * Add hooks and filters
 	 */
 	public function init() {
-		new Woocommerce();
 		new Github_API();
 		new REST_Endpoints();
 		new Custom_Fields();
 		new Shortcodes();
-		new Woocommerce_License_Manager();
+		new Licenses();
+
+		if ( class_exists( 'woocommerce' ) ) {
+			new Woocommerce();
+		}
+
+		if ( class_exists( 'LicenseManagerForWooCommerce\Main' ) ) {
+			new Woocommerce_License_Manager();
+		}
 	}
 
 }

@@ -19,13 +19,11 @@ class Woocommerce {
 	 * Initiator.
 	 */
 	public function init() {
-		if ( class_exists( 'woocommerce' ) ) {
-			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'add_downloads' ) );
-			add_filter( 'woocommerce_customer_get_downloadable_products', array( $this, 'add_wc_downloads' ) );
-			add_filter( 'woocommerce_product_data_tabs', array( $this, 'add_wc_product_tab' ) );
-			add_action( 'woocommerce_product_data_panels', array( $this, 'add_wc_product_data_panel' ) );
-			add_action( 'woocommerce_process_product_meta', array( $this, 'save_wc_product_data_panel' ) );
-		}
+		add_action( 'woocommerce_order_details_after_order_table', array( $this, 'add_downloads' ) );
+		add_filter( 'woocommerce_customer_get_downloadable_products', array( $this, 'add_wc_downloads' ) );
+		add_filter( 'woocommerce_product_data_tabs', array( $this, 'add_wc_product_tab' ) );
+		add_action( 'woocommerce_product_data_panels', array( $this, 'add_wc_product_data_panel' ) );
+		add_action( 'woocommerce_process_product_meta', array( $this, 'save_wc_product_data_panel' ) );
 	}
 
 	/**
