@@ -16,15 +16,21 @@ class Shortcodes {
 		add_shortcode( 'premia_download_button', array( $this, 'render_shortcode' ) );
 	}
 
-	public function render_shortcode() {
+	public function render_shortcode( $atts ) {
 		$download_url = '';
 
-		$post         = get_post( get_the_ID() );
+		if ( isset( $atts['id'] ) && ! empty( $atts['id'] ) ) {
+			$id = intval( $atts['id'] );
+		} else {
+			$id = get_the_ID();
+		}
+
+		$post         = get_post( $id );
 		$license_info = array(
 			'site_url' => '',
 			'plugin'   => $post->post_name,
 			'_wpnonce' => wp_create_nonce( 'wp_rest' ),
-			'post_id'  => get_the_ID(),
+			'post_id'  => $id,
 		);
 
 		$download_url = get_rest_url() . 'license-updater/v1/download_update';
