@@ -22,11 +22,27 @@ class Custom_Fields {
 		add_filter( 'premia_update_field', array( $this, 'do_not_validate' ), 10, 3 );
 	}
 
-	public static function get_fields() {
+	public static function get_fields( $type = 'all' ) {
 		$doc_generate_url = 'https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token';
 		$doc_bot_url      = 'https://docs.github.com/en/github/getting-started-with-github/learning-about-github/types-of-github-accounts';
-		return apply_filters(
-			'premia_customize_fields',
+
+		$fields = array();
+
+		$license_fields = apply_filters(
+			'premia_customize_license_fields',
+			array(
+				array(
+					'name'    => '_premia_linked_post_id',
+					'label'   => __( 'Linked Post or Page', 'premia' ),
+					'desc'    => __( 'Select a post that this license is linked to.', 'premia' ),
+					'type'    => 'select',
+					'visible' => true,
+				),
+			)
+		);
+
+		$post_fields = apply_filters(
+			'premia_customize_post_fields',
 			array(
 				array(
 					'name'    => '_updater_repo',
@@ -51,14 +67,28 @@ class Custom_Fields {
 				),
 			)
 		);
+
+		switch ( $type ) {
+			case 'license':
+				$fields = $license_fields;
+				break;
+			case 'post':
+				$fields = $post_fields;
+				break;
+			default:
+				$fields = array_merge( $license_fields, $post_fields );
+				break;
+		}
+
+		return $fields;
 	}
 
 	public function add_metabox() {
-		add_meta_box( $this->metabox_id, __( 'Premia settings', 'premia' ), array( $this, 'render_fields' ), array( 'post', 'page' ) );
+		add_meta_box( $this->metabox_id, __( 'Premia settings', 'premia' ), array( $this, 'render_post_fields' ), array( 'post', 'page' ) );
+		add_meta_box( $this->metabox_id, __( 'License settings', 'premia' ), array( $this, 'render_license_fields' ), array( 'prem_license' ) );
 	}
 
-	public function render_fields( $post ) {
-		$fields = $this->get_fields();
+	public function render_fields( $fields, $post ) {
 		foreach ( $fields as $field ) {
 			if ( $field['visible'] === true ) {
 				echo '<div>';
@@ -69,6 +99,23 @@ class Custom_Fields {
 						echo '<input id="' . $field['name'] . '" type="' . $field['type'] . '" name="' . $field['name'] . '" ' . $checked . ' />';
 						echo $field['label'];
 						echo '</label>';
+						break;
+					case 'select':
+						echo '<label for="' . $field['name'] . '">' . $field['label'] . '</label><br/>';
+						$choices = get_posts(
+							array(
+								'post_type'    => array( 'post', 'page' ),
+								'numbersposts' => -1,
+							)
+						);
+						echo '<select id="' . $field['name'] . '" name="' . $field['name'] . '">';
+						foreach ( $choices as $choice ) {
+							$selected = ( intval( get_post_meta( $post->ID, $field['name'], true ) ) === $choice->ID ? ' selected="selected"' : '' );
+							echo '<option name="' . $choice->ID . '" value="' . $choice->ID . '" ' . $selected . '>' . $choice->post_title . '</option>';
+						}
+						echo '</select>';
+						echo '<div><i>' . $field['desc'] . '</i></div>';
+						break;
 						break;
 					default:
 						echo '<label for="' . $field['name'] . '">' . $field['label'] . '</label><br/>';
@@ -81,15 +128,27 @@ class Custom_Fields {
 		}
 	}
 
+	public function render_post_fields( $post ) {
+		$fields = $this->get_fields( 'post' );
+		return $this->render_fields( $fields, $post );
+	}
+
+	public function render_license_fields( $post ) {
+		$fields = $this->get_fields( 'license' );
+		return $this->render_fields( $fields, $post );
+	}
+
 	public function update_fields( $post_id ) {
 
 		$fields = $this->get_fields();
 
 		foreach ( $fields as $field ) {
+			$value = '';
 			if ( isset( $_POST[ $field['name'] ] ) ) {
-				$value = apply_filters( 'premia_update_field', sanitize_text_field( $_POST[ $field['name'] ] ), $field, $post_id );
-				update_post_meta( $post_id, $field['name'], $value );
+				$value = sanitize_text_field( $_POST[ $field['name'] ] );
 			}
+			$value = apply_filters( 'premia_update_field', $value, $field, $post_id );
+			update_post_meta( $post_id, $field['name'], $value );
 		}
 	}
 
