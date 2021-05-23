@@ -43,6 +43,7 @@ class Premia {
 		new Custom_Fields();
 		new Shortcodes();
 		new Licenses();
+		new Debug();
 
 		if ( class_exists( 'woocommerce' ) ) {
 			new Woocommerce();

@@ -8,6 +8,7 @@ class ComposerStaticInitda3e785a243469b646d29154152de59f
 {
     public static $classMap = array (
         'Premia\\Custom_Fields' => __DIR__ . '/../..' . '/classes/class-custom-fields.php',
+        'Premia\\Debug' => __DIR__ . '/../..' . '/classes/class-debug.php',
         'Premia\\Github_API' => __DIR__ . '/../..' . '/classes/class-github-api.php',
         'Premia\\Licenses' => __DIR__ . '/../..' . '/classes/class-licenses.php',
         'Premia\\REST_Endpoints' => __DIR__ . '/../..' . '/classes/class-rest-endpoints.php',

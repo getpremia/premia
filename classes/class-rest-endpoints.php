@@ -346,6 +346,8 @@ class REST_Endpoints {
 
 		$license_info = $request->get_params();
 
+		Debug::log('Check updates', $license_info);
+
 		// Always show that there's new updates.
 		//$version = implode('.', str_split(floatval(str_replace('.', '', $license_info['installed_version'])) + 1));
 
@@ -360,10 +362,12 @@ class REST_Endpoints {
 
 		if (!isset($license_info['plugin']) || empty($license_info['plugin'])) {
 			$output['name'] = 'No plugin provided';
+			Debug::log('Missing plugin name');
 		}
 
 		if ( ! isset( $license_info['license_key'] ) || ! isset( $license_info['site_url'] ) || ! isset( $license_info['plugin'] ) ) {
 			$output['name'] = 'License information incomplete.';
+			Debug::log('Missing license key or site url');
 		}
 
 		if ( ! $this->validate_request( $license_info ) ) {
@@ -376,6 +380,7 @@ class REST_Endpoints {
 
 			if (is_wp_error($post) || !$post) {
 				$output['name'] = 'Plugin cannot be found.';
+				Debug::log('wp error on $post', $post);
 			} else {
 				$output['name'] = $post->post_title;
 
@@ -393,6 +398,7 @@ class REST_Endpoints {
 					$output['sections']['description'] = $latest_info->body;
 				} else {
 					$output['name'] = 'Failed to get the latest version information.';
+					Debug::log('Failed to get the latest version information', $latest);
 				}
 
 				if (empty($output['sections']['description'])) {
@@ -424,6 +430,7 @@ class REST_Endpoints {
 	 */
 	public function validate( $license_info ) {
 		if (!isset($license_info['license_key'])) {
+			Debug::log('Cannot validate', $license_info);
 			return false;
 		}
 		$license  = lmfwc_get_license( $license_info['license_key'] );
@@ -432,7 +439,11 @@ class REST_Endpoints {
 			$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
 			if ( in_array( $license_info['site_url'], $installs, true ) || is_user_logged_in() ) {
 				return true;
+			} else {
+				Debug::log('Cannot validate site', $license_info);
 			}
+		} else {
+			Debug::log('Something went wrong while getting the license.', $license);
 		}
 
 		return false;
@@ -449,10 +460,12 @@ class REST_Endpoints {
 
 			if ( strpos( $_SERVER['HTTP_USER_AGENT'], 'WordPress' ) === false ) {
 				$success = false;
+				Debug::log('Can\'t verify if request came from WordPress.', $_SERVER['HTTP_USER_AGENT']);
 			}
 
 			if ( isset($license_info['site_url']) && strpos( $_SERVER['HTTP_USER_AGENT'], $license_info['site_url'] ) === false ) {
 				$success = false;
+				Debug::log('Can\'t verify if request came from website.', array($_SERVER['HTTP_USER_AGENT'], $license_info['site_url']));
 			}
 			
 		}
