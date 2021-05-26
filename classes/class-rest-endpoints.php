@@ -98,6 +98,7 @@ class REST_Endpoints {
 			case 'deactivate':
 				$deactivate = Licenses::deactivate( $license_info );
 				if ( ! $deactivate ) {
+					Debug::log( 'Failed to deactivate license', $license_info );
 					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
 				}
 				break;
@@ -105,11 +106,13 @@ class REST_Endpoints {
 			case 'activate':
 				$activate = Licenses::activate( $license_info );
 				if ( ! $activate ) {
+					Debug::log( 'Failed to activate license', $license_info );
 					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
 				}
 				break;
 
 			default:
+				Debug::log( 'No action?', array( $action, $license_info ) );
 				return new \WP_REST_Response( array( 'error' => 'No action provided.' ), 400 );
 				// $license = Licenses::get_license( $license_info );
 				// if ( ! $license ) {
@@ -145,6 +148,7 @@ class REST_Endpoints {
 
 		// If the user is not logged in and we can't validate the license_info, bail.
 		if ( ! $this->validate_request( $license_info ) ) {
+			Debug::log( 'Validate failed.', $license_info );
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
 		}
 
@@ -156,6 +160,7 @@ class REST_Endpoints {
 		}
 
 		if ( is_wp_error( $post ) ) {
+			Debug::log( 'Error on $post.', $post );
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
 		}
 
@@ -169,6 +174,7 @@ class REST_Endpoints {
 
 		// Can't validate? bail.
 		if ( ! $validate && $do_not_validate !== 'on' ) {
+			Debug::log( 'Failed validation.', array( $validate, $do_not_validate ) );
 			return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
 		}
 
@@ -176,12 +182,14 @@ class REST_Endpoints {
 
 		// Can't authenticate? bail.
 		if ( empty( $github_data['api_url'] ) || empty( $github_data['api_token'] ) ) {
+			Debug::log( 'Missing github data.', $github_data );
 			return new \WP_REST_Response( array( 'error' => 'No API URL and token provided.' ), 400 );
 		}
 		// Get the result.
 		$result = Github_API::request( $github_data, '/releases/latest' );
 
 		if ( is_wp_error( $result ) || wp_remote_retrieve_response_code( $result ) !== 200 ) {
+			Debug::log( 'Failed to talk to Github.', array( $github_data, $result, wp_remote_retrieve_response_code( $result ) ) );
 			return new \WP_REST_Response( array( 'error' => 'Failed to communicate with Github.' ), 400 );
 		}
 
@@ -221,6 +229,7 @@ class REST_Endpoints {
 		$zip = Github_API::request( $github_data, $path );
 
 		if ( is_wp_error( $zip ) ) {
+			Debug::log( 'Zip is not valid?', $zip );
 			return new \WP_REST_Response( array( 'error' => 'Zip is invalid.' ), 400 );
 		}
 
