@@ -19,6 +19,7 @@ class Custom_Fields {
 		add_action( 'save_post', array( $this, 'update_fields' ) );
 
 		add_filter( 'premia_update_field', array( $this, 'replace_github_url' ) );
+		add_filter( 'premia_update_field', array( $this, 'github_remove_last_slash' ) );
 		add_filter( 'premia_update_field', array( $this, 'do_not_validate' ), 10, 3 );
 	}
 
@@ -156,6 +157,13 @@ class Custom_Fields {
 		if ( strpos( $value, 'github.com' ) !== false && strpos( $value, 'api.github.com' ) === false ) {
 			$value = rtrim( sanitize_text_field( $value ), '/' );
 			$value = str_replace( 'github.com', 'api.github.com/repos', $value );
+		}
+		return $value;
+	}
+
+	public static function github_remove_last_slash( $value ) {
+		if ( strpos( $value, 'github.com' ) !== false ) {
+			$value = rtrim( sanitize_text_field( $value ), '/' );
 		}
 		return $value;
 	}
