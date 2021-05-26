@@ -6,7 +6,7 @@ namespace Premia;
 
  * @since 1.0
  */
-class Woocommerce_License_Manager {
+class Woocommerce_License_Manager_Helper {
 
 	public function __construct() {
 		$this->init();
@@ -17,6 +17,10 @@ class Woocommerce_License_Manager {
 		add_filter( 'premia_activate_license', array( $this, 'activate' ) );
 		add_filter( 'premia_deactivate_license', array( $this, 'deactivate' ) );
 		add_filter( 'premia_get_license', array( $this, 'get_license' ) );
+	}
+
+	public function start() {
+		
 	}
 
 	/**

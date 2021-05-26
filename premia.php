@@ -42,16 +42,10 @@ class Premia {
 		new REST_Endpoints();
 		new Custom_Fields();
 		new Shortcodes();
-		new Licenses();
 		new Debug();
-
-		if ( class_exists( 'woocommerce' ) ) {
-			new Woocommerce();
-		}
-
-		if ( class_exists( 'LicenseManagerForWooCommerce\Main' ) ) {
-			new Woocommerce_License_Manager();
-		}
+		new Woocommerce_Helper();
+		new Licenses();
+		new Woocommerce_License_Manager_Helper();
 	}
 
 }

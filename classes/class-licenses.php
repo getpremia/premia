@@ -9,12 +9,27 @@ namespace Premia;
 class Licenses {
 
 	public function __construct() {
-		add_action( 'init', array( $this, 'register_post_types' ) );
+		$this->init();
+	}
 
-		add_action( 'manage_prem_license_posts_columns', array( $this, 'manage_columns' ) );
-		add_action( 'manage_prem_license_posts_custom_column', array( $this, 'columns_content' ), 10, 2 );
+	public function init() {
+		$this->start();
+	}
 
-		add_action( 'wp_insert_post_data', array( $this, 'insert_license' ), 10, 2 );
+	public function is_necessary() {
+		if ( \class_exists( 'LicenseManagerForWooCommerce\Main' ) ) {
+			return false;
+		}
+		return true;
+	}
+
+	public function start() {
+		if ( $this->is_necessary() ) {
+			add_action( 'init', array( $this, 'register_post_types' ) );
+			add_action( 'manage_prem_license_posts_columns', array( $this, 'manage_columns' ) );
+			add_action( 'manage_prem_license_posts_custom_column', array( $this, 'columns_content' ), 10, 2 );
+			add_action( 'wp_insert_post_data', array( $this, 'insert_license' ), 10, 2 );
+		}
 	}
 
 	public function manage_columns( $columns ) {
@@ -86,11 +101,13 @@ class Licenses {
 	}
 
 	public function create_license() {
-		return wp_insert_post(array(
-			'post_title' => $this->generate_license(),
-			'post_status' => 'publish',
-			'post_type' => 'prem_license'
-		));
+		return wp_insert_post(
+			array(
+				'post_title'  => $this->generate_license(),
+				'post_status' => 'publish',
+				'post_type'   => 'prem_license',
+			)
+		);
 	}
 
 	public static function activate( $license_info ) {

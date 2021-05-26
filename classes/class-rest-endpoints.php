@@ -376,11 +376,13 @@ class REST_Endpoints {
 		
 		if (isset($license_info['plugin']) && !empty($license_info['plugin'])) { 
 	
-			$post = get_post(array(
+			$posts = get_posts(array(
 				'post_type' => array('post', 'page', 'product'),
 				'post_status' => 'publish',
 				'post_name' => $license_info['plugin']
 			));
+
+			$post = reset($posts);
 
 			if (is_wp_error($post) || !$post) {
 				$output['name'] = 'Plugin cannot be found.';
@@ -389,6 +391,9 @@ class REST_Endpoints {
 				$output['name'] = $post->post_title;
 
 				$github_data = $this->get_github_data( $post->ID );
+
+				Debug::log('Post ID', $post->ID);
+				Debug::log('Data used for Github API', $github_data);
 
 				if (isset($license_info['tag']) && !empty($license_info['tag'])) {
 					$latest      = Github_API::request( $github_data, '/releases/tags/' . $license_info['tag'] );

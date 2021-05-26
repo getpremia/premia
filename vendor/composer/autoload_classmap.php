@@ -12,6 +12,6 @@ return array(
     'Premia\\Licenses' => $baseDir . '/classes/class-licenses.php',
     'Premia\\REST_Endpoints' => $baseDir . '/classes/class-rest-endpoints.php',
     'Premia\\Shortcodes' => $baseDir . '/classes/class-shortcodes.php',
-    'Premia\\Woocommerce' => $baseDir . '/integrations/class-woocommerce.php',
-    'Premia\\Woocommerce_License_Manager' => $baseDir . '/integrations/class-woocommerce-license-manager.php',
+    'Premia\\Woocommerce_Helper' => $baseDir . '/integrations/class-woocommerce-helper.php',
+    'Premia\\Woocommerce_License_Manager_Helper' => $baseDir . '/integrations/class-woocommerce-license-manager-helper.php',
 );
