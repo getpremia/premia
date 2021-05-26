@@ -25,6 +25,8 @@ class Github_API {
 			)
 		);
 
+		Debug::log( 'Executing request to: ' . $data['api_url'] . $url, $args );
+
 		return wp_remote_get( $data['api_url'] . $url, $args );
 	}
 }
