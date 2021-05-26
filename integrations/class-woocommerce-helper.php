@@ -170,6 +170,8 @@ class Woocommerce_Helper {
 		foreach ( $user_licenses as $data ) {
 			if ( empty( $data['keys'] ) ) {
 				echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '';
+			} else {
+				echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '';
 			}
 			foreach ( $data['keys'] as $license ) {
 				$post         = get_post( $license->getproductId() );
