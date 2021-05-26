@@ -61,7 +61,7 @@ class Woocommerce_Helper {
 		?><div id="updater_options_data" class="panel woocommerce_options_panel hidden">
 		<?php
 
-		$fields = Custom_Fields::get_fields();
+		$fields = Custom_Fields::get_fields( 'license' );
 
 		foreach ( $fields as $field ) {
 			switch ( $field['type'] ) {
@@ -164,7 +164,6 @@ class Woocommerce_Helper {
 	 */
 	public function add_downloads( $order ) {
 		echo '<header><h2>' . esc_html__( 'Downloads', 'premia' ) . '</h2></header>';
-		echo '<table>';
 
 		$user_licenses = apply_filters( 'lmfwc_get_customer_license_keys', $order );
 
@@ -182,9 +181,8 @@ class Woocommerce_Helper {
 				);
 				$download_url = get_rest_url() . 'license-updater/v1/download_update';
 				$download_url = add_query_arg( $license_info, $download_url );
-				echo '<a class="button" href="' . esc_html( $download_url ) . '">Download ' . esc_html( $data['name'] ) . '</a>';
+				echo '<p><a class="button" href="' . esc_html( $download_url ) . '">Download ' . esc_html( $data['name'] ) . '</a></p>';
 			}
 		}
-		echo '</table>';
 	}
 }
