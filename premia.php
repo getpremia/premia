@@ -38,7 +38,7 @@ class Premia {
 	 * Add hooks and filters
 	 */
 	public function init() {
-		new Github_API();
+		new Github();
 		new REST_Endpoints();
 		new Custom_Fields();
 		new Shortcodes();
@@ -46,6 +46,7 @@ class Premia {
 		new Woocommerce_Helper();
 		new Licenses();
 		new Woocommerce_License_Manager_Helper();
+		new Compressor();
 	}
 
 }

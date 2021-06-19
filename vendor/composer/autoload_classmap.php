@@ -6,9 +6,10 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
+    'Premia\\Compressor' => $baseDir . '/classes/class-compressor.php',
     'Premia\\Custom_Fields' => $baseDir . '/classes/class-custom-fields.php',
     'Premia\\Debug' => $baseDir . '/classes/class-debug.php',
-    'Premia\\Github_API' => $baseDir . '/classes/class-github-api.php',
+    'Premia\\Github' => $baseDir . '/classes/class-github.php',
     'Premia\\Licenses' => $baseDir . '/classes/class-licenses.php',
     'Premia\\REST_Endpoints' => $baseDir . '/classes/class-rest-endpoints.php',
     'Premia\\Shortcodes' => $baseDir . '/classes/class-shortcodes.php',

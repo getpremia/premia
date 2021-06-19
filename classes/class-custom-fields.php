@@ -64,7 +64,7 @@ class Custom_Fields {
 					'type'    => 'checkbox',
 					'label'   => __( 'Do not validate licenses', 'premia' ),
 					'desc'    => __( 'When enabling this option, license checks are disabled.', 'premia' ),
-					'visible' => false,
+					'visible' => true,
 				),
 			)
 		);

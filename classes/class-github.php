@@ -6,7 +6,7 @@ namespace Premia;
 
  * @since 1.0
  */
-class Github_API {
+class Github {
 	/**
 	 * Send a request to Github.
 	 *
@@ -28,5 +28,15 @@ class Github_API {
 		Debug::log( 'Executing request to: ' . $data['api_url'] . $url, $args );
 
 		return wp_remote_get( $data['api_url'] . $url, $args );
+	}
+
+	public static function get_meta_data( $post_id ) {
+
+		$data = array();
+		// Get Github information from post.
+		$data['api_url']   = get_post_meta( $post_id, '_updater_repo', true );
+		$data['api_token'] = get_post_meta( $post_id, '_updater_api_token', true );
+
+		return $data;
 	}
 }
