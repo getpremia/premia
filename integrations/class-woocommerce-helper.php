@@ -61,7 +61,7 @@ class Woocommerce_Helper {
 		?><div id="updater_options_data" class="panel woocommerce_options_panel hidden">
 		<?php
 
-		$fields = Custom_Fields::get_fields( 'license' );
+		$fields = Custom_Fields::get_fields( 'post' );
 
 		foreach ( $fields as $field ) {
 			switch ( $field['type'] ) {
