@@ -47,6 +47,8 @@ class Premia {
 		new Licenses();
 		new Woocommerce_License_Manager_Helper();
 		new Compressor();
+		new Updater('premia');
+		new Admin_Options();
 	}
 
 }

@@ -6,7 +6,9 @@
             "email": "marinus@mklasen.nl"
         }
     ],
-    "require": {},
+    "require": {
+        "yahnis-elsts/plugin-update-checker": "^4.11"
+    },
     "autoload": {
         "classmap": [
             "classes",
