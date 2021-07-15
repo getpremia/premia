@@ -10,7 +10,7 @@
  * Plugin Name:       Premia
  * Plugin URI:        https://mklasen.com
  * Description:       Premia
- * Version:           1.1
+ * Version:           0.7
  * Requires at least: 5.2
  * Requires PHP:      7.2
  * Author:            Marinus Klasen
@@ -47,7 +47,7 @@ class Premia {
 		new Licenses();
 		new Woocommerce_License_Manager_Helper();
 		new Compressor();
-		new Updater('premia');
+		new Updater( 'premia' );
 		new Admin_Options();
 	}
 

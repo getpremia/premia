@@ -8,7 +8,7 @@ namespace Premia;
  */
 class Admin_Options {
 
-	private $api_url = 'https://getpremia.com/wp-json/license-updater/v1/';
+	private $api_url = 'https://getpremia.c7/wp-json/license-updater/v1/';
 
 	private $plugin_name = 'premia';
 
@@ -65,6 +65,7 @@ class Admin_Options {
 				$status = wp_remote_retrieve_response_code( $activate );
 
 				Debug::log( 'Result status: ' . $url, $status );
+				Debug::log( 'Result body: ' . $url, wp_remote_retrieve_body( $activate ) );
 
 				if ( $action === 'deactivate' ) {
 					   $license = '';
@@ -74,7 +75,7 @@ class Admin_Options {
 					echo '<div class="notice notice-error"><p>Failed to activate license.</p></div>';
 				} else {
 					if ( $action === 'activate' ) {
-						$this->puc->checkForUpdates();
+						Updater::check_for_updates();
 						$message = __( 'License activated!', 'premia-demo' );
 					} else {
 						$message = __( 'License deactivated!', 'premia-demo' );
@@ -149,11 +150,11 @@ class Admin_Options {
 		// echo '<input class="button-primary" type="submit" value="' . ( ( ! empty( $current_license ) && $license_verified === true ) ? 'Deactivate' : 'Activate' ) . '" />';
 		// echo '</p>';
 		// if ( WP_DEBUG ) {
-		// 	echo '<p>';
-		// 	echo '<label for="' . esc_html( $tag_option_name ) . '">' . __( 'Tag', 'premia-demo' ) . '</label><br/>';
-		// 	echo '<input name="' . esc_html( $tag_option_name ) . '" value="' . esc_html( $current_tag ) . '" placeholder="' . __( 'Enter tag or leave empty for latest release', 'premia-demo' ) . '" type="text" />';
-		// 	echo '<input class="button-primary" type="submit" value="Update" />';
-		// 	echo '</p>';
+		// echo '<p>';
+		// echo '<label for="' . esc_html( $tag_option_name ) . '">' . __( 'Tag', 'premia-demo' ) . '</label><br/>';
+		// echo '<input name="' . esc_html( $tag_option_name ) . '" value="' . esc_html( $current_tag ) . '" placeholder="' . __( 'Enter tag or leave empty for latest release', 'premia-demo' ) . '" type="text" />';
+		// echo '<input class="button-primary" type="submit" value="Update" />';
+		// echo '</p>';
 		// }
 		// echo '</div>';
 		?>
