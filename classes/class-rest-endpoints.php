@@ -1,8 +1,6 @@
 <?php
 namespace Premia;
 
-use ZipArchive;
-
 /**
  * Rest Endpoints class
  *
@@ -138,12 +136,21 @@ class REST_Endpoints {
 		$body    = json_decode( wp_remote_retrieve_body( $result ) );
 		$version = $body->tag_name;
 
+		Debug::log( 'Github response: ', $body );
+
 		$base_dir = plugin_dir_path( dirname( __FILE__ ) );
 		Compressor::prepare_directories( $base_dir, $version );
 
+		// Set the download url.
+		if ( is_array( $body->assets ) && ! empty( $body->assets ) ) {
+			$release = reset( $body->assets );
+			$zip_url = str_replace( $github_data['api_url'], '', $release->url );
+		} else {
+			$zip_url = str_replace( $github_data['api_url'], '', $body->zipball_url );
+		}
+
 		// Get the ZIP.
-		$zip_url   = str_replace( $github_data['api_url'], '', $body->zipball_url );
-		$file_path = Compressor::download_zip( $github_data, $zip_url, $base_dir );
+		$file_path = Compressor::download_zip( $github_data, $zip_url, $base_dir, $plugin_file );
 
 		$archive_path = $base_dir . 'tmp/zip/' . $version . '/' . $plugin_file;
 
@@ -182,9 +189,6 @@ class REST_Endpoints {
 
 		Debug::log('Check updates', $license_info);
 
-		// Always show that there's new updates.
-		//$version = implode('.', str_split(floatval(str_replace('.', '', $license_info['installed_version'])) + 1));
-
 		$output = array(
 			'name'         => '',
 			'version'      => '0.1',
@@ -209,19 +213,18 @@ class REST_Endpoints {
 		}
 		
 		if ( isset( $license_info['plugin'] ) && !empty( $license_info['plugin'] ) ) { 
-	
+
 			$posts = get_posts(array(
 				'post_type' => array('post', 'page', 'product'),
 				'post_status' => 'publish',
-				'post_name' => $license_info['plugin']
+				'name' => $license_info['plugin']
 			));
 
-			$post = reset($posts);
-
-			if (is_wp_error($post) || !$post) {
+			if (!is_array($posts) || empty($posts)) {
 				$output['name'] = 'Plugin cannot be found.';
-				Debug::log('wp error on $post', $post);
+				Debug::log('No results for query. ', $posts);
 			} else {
+				$post = reset($posts);
 				$output['name'] = $post->post_title;
 
 				$github_data = Github::get_meta_data( $post->ID );
@@ -299,6 +302,14 @@ class REST_Endpoints {
 	 */
 	public function manage_license( $license_info, $action ) {
 
+		$defaults = array(
+			'license_key' => '',
+			'site_url' => '',
+			'action' => '',
+		);
+
+		$license_info = wp_parse_args($license_info, $defaults);
+
 		switch ( $action ) {
 			case 'deactivate':
 				$deactivate = Licenses::deactivate( $license_info );
@@ -330,10 +341,13 @@ class REST_Endpoints {
 	public function validate_request( $license_info ) {
 
 		$success = true;
+		$do_not_validate = false;
 
-		$do_not_validate = get_post_meta($license_info['post_id'], '_updater_do_not_validate_licenses', true);
+		if ( isset( $license_info['post_id'] ) ) {
+			$do_not_validate = get_post_meta($license_info['post_id'], '_updater_do_not_validate_licenses', true);
+		}
 
-		if ( !is_user_logged_in(  ) && $do_not_validate !== 'on') {
+		if ( ! is_user_logged_in() && $do_not_validate !== 'on') {
 
 			if ( strpos( $_SERVER['HTTP_USER_AGENT'], 'WordPress' ) === false ) {
 				$success = false;
