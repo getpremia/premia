@@ -14,8 +14,8 @@ class Woocommerce_License_Manager_Helper {
 
 	public function init() {
 		add_action( 'woocommerce_account_view-license-keys_endpoint', array( $this, 'manage_installs' ), 20 );
-		add_filter( 'premia_activate_license', array( $this, 'activate' ) );
-		add_filter( 'premia_deactivate_license', array( $this, 'deactivate' ) );
+		add_filter( 'premia_activate_license', array( $this, 'activate' ), 10, 2 );
+		add_filter( 'premia_deactivate_license', array( $this, 'deactivate' ), 10, 2 );
 		add_filter( 'premia_get_license', array( $this, 'get_license' ) );
 	}
 
@@ -92,7 +92,7 @@ class Woocommerce_License_Manager_Helper {
 	 *
 	 * @param array $license_info An array with license information.
 	 */
-	public static function activate( $license_info ) {
+	public static function activate( $status, $license_info ) {
 		$license = lmfwc_get_license( $license_info['license_key'] );
 		if ( ! $license ) {
 			return false;
