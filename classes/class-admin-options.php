@@ -65,6 +65,7 @@ class Admin_Options {
 				$status = wp_remote_retrieve_response_code( $activate );
 
 				Debug::log( 'Result status: ' . $url, $status );
+				Debug::log( 'Result body: ' . $url, wp_remote_retrieve_body( $activate ) );
 
 				if ( $action === 'deactivate' ) {
 					   $license = '';
@@ -149,11 +150,11 @@ class Admin_Options {
 		// echo '<input class="button-primary" type="submit" value="' . ( ( ! empty( $current_license ) && $license_verified === true ) ? 'Deactivate' : 'Activate' ) . '" />';
 		// echo '</p>';
 		// if ( WP_DEBUG ) {
-		// 	echo '<p>';
-		// 	echo '<label for="' . esc_html( $tag_option_name ) . '">' . __( 'Tag', 'premia-demo' ) . '</label><br/>';
-		// 	echo '<input name="' . esc_html( $tag_option_name ) . '" value="' . esc_html( $current_tag ) . '" placeholder="' . __( 'Enter tag or leave empty for latest release', 'premia-demo' ) . '" type="text" />';
-		// 	echo '<input class="button-primary" type="submit" value="Update" />';
-		// 	echo '</p>';
+		// echo '<p>';
+		// echo '<label for="' . esc_html( $tag_option_name ) . '">' . __( 'Tag', 'premia-demo' ) . '</label><br/>';
+		// echo '<input name="' . esc_html( $tag_option_name ) . '" value="' . esc_html( $current_tag ) . '" placeholder="' . __( 'Enter tag or leave empty for latest release', 'premia-demo' ) . '" type="text" />';
+		// echo '<input class="button-primary" type="submit" value="Update" />';
+		// echo '</p>';
 		// }
 		// echo '</div>';
 		?>
