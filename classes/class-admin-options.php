@@ -8,7 +8,7 @@ namespace Premia;
  */
 class Admin_Options {
 
-	private $api_url = 'https://getpremia.com/wp-json/license-updater/v1/';
+	private $api_url = 'https://getpremia.c7/wp-json/license-updater/v1/';
 
 	private $plugin_name = 'premia';
 
@@ -75,7 +75,7 @@ class Admin_Options {
 					echo '<div class="notice notice-error"><p>Failed to activate license.</p></div>';
 				} else {
 					if ( $action === 'activate' ) {
-						$this->puc->checkForUpdates();
+						Updater::check_for_updates();
 						$message = __( 'License activated!', 'premia-demo' );
 					} else {
 						$message = __( 'License deactivated!', 'premia-demo' );
