@@ -1,6 +1,8 @@
 <?php
 namespace Premia;
 
+use WP_Error;
+
 /**
  * Generator
 
@@ -87,16 +89,20 @@ class Compressor {
 	/**
 	 * Download a ZIP file
 	 */
-	public static function download_zip( $github_data, $path, $base_dir ) {
-		$zip = Github::request( $github_data, $path );
+	public static function download_zip( $github_data, $path, $base_dir, $plugin_file ) {
+		$zip = Github::request( $github_data, $path, array(), 'zip' );
 
 		if ( is_wp_error( $zip ) ) {
 			Debug::log( 'Zip is not valid?', $zip );
 			return new \WP_REST_Response( array( 'error' => 'Zip is invalid.' ), 400 );
 		}
 
-		$parts    = explode( 'filename=', $zip['headers']['content-disposition'] );
-		$zip_name = $parts[1];
+		$parts = explode( 'filename=', $zip['headers']['content-disposition'] );
+		if ( is_array( $parts ) && isset( $parts[1] ) ) {
+			$zip_name = $parts[1];
+		} else {
+			$zip_name = $plugin_file;
+		}
 
 		$file_path = $base_dir . 'tmp/zip/' . $zip_name;
 
