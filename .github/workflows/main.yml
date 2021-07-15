@@ -28,7 +28,7 @@ jobs:
         composer install -o -q
 
     - name: Zip Folder
-      run: zip -r premia.zip . -x ".git/*" ".github/*" ".phpcs.xml"
+      run: zip -r premia.zip . -x ".git/*" ".github/*" "phpcs.xml" "composer.json" "composer.lock"
 
     - name: Release
       uses: softprops/action-gh-release@v1
