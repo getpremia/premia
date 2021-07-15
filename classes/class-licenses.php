@@ -111,14 +111,14 @@ class Licenses {
 	}
 
 	public static function activate( $license_info ) {
-		return apply_filters( 'premia_activate_license', '__return_true', $license_info );
+		return apply_filters( 'premia_activate_license', true, $license_info );
 	}
 
 	public static function deactivate( $license_info ) {
-		return apply_filters( 'premia_activate_license', '__return_true', $license_info );
+		return apply_filters( 'premia_activate_license', true, $license_info );
 	}
 
 	public static function get_license( $license_info ) {
-		return apply_filters( 'premia_get_license', '__return_true', $license_info );
+		return apply_filters( 'premia_get_license', true, $license_info );
 	}
 }
