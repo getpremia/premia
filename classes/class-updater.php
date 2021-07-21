@@ -32,13 +32,15 @@ class Updater {
 	 *
 	 * @param string $name The plugin name.
 	 */
-	public function __construct( $name ) {
+	public function __construct( $name, $file ) {
 		$this->plugin_name = $name;
 		add_filter( "puc_request_info_query_args-{$this->plugin_name}", array( $this, 'add_license_info' ) );
 
+		$this->api_url = apply_filters( 'premia_api_url', $this->api_url );
+
 		self::$puc = \Puc_v4_Factory::buildUpdateChecker(
 			$this->api_url . 'check_updates',
-			__FILE__,
+			$file,
 			$this->plugin_name
 		);
 	}
@@ -53,6 +55,8 @@ class Updater {
 		$args['license_key'] = get_option( $option_name );
 		$args['site_url']    = esc_url( get_site_url() );
 		$args['plugin']      = $this->plugin_name;
+
+		Debug::log( 'puc_request_info_query_args: ', $args );
 
 		return $args;
 	}
