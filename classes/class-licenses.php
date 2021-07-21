@@ -189,9 +189,17 @@ class Licenses {
 	public static function validate_license( $license_info ) {
 		$validate = false;
 
+		// Bail early as there's no validation to do.
+		if ( isset( $license_info['post_id'] ) && ! empty( $license_info['post_id'] ) ) {
+			$do_not_validate = get_post_meta( intval( $license_info['post_id'] ), '_updater_do_not_validate_licenses', true );
+			if ( $do_not_validate ) {
+				return true;
+			}
+		}
+
 		if ( ! isset( $license_info['license_key'] ) || empty( $license_info['license_key'] ) ) {
 			Debug::log( 'Cannot validate', $license_info );
-			$validate = false;
+			return false;
 		}
 
 		$license = self::get_license_by_license_key( $license_info['license_key'] );

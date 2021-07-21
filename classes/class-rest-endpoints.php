@@ -110,10 +110,8 @@ class REST_Endpoints {
 		// Validate the license info.
 		$validate = $this->validate( $license_info );
 
-		$do_not_validate = get_post_meta( $post->ID, '_updater_do_not_validate_licenses', true );
-
 		// Can't validate? bail.
-		if ( ! $validate && $do_not_validate !== 'on' ) {
+		if ( ! $validate ) {
 			Debug::log( 'Failed validation.', array( $validate, $do_not_validate ) );
 			return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
 		}
