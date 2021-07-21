@@ -34,7 +34,7 @@ class Custom_Fields {
 			array(
 				array(
 					'name'    => '_premia_linked_post_id',
-					'label'   => __( 'Linked Post or Page', 'premia' ),
+					'label'   => __( 'Linked Item', 'premia' ),
 					'desc'    => __( 'Select a post that this license is linked to.', 'premia' ),
 					'type'    => 'select',
 					'visible' => true,
@@ -105,8 +105,8 @@ class Custom_Fields {
 						echo '<label for="' . $field['name'] . '">' . $field['label'] . '</label><br/>';
 						$choices = get_posts(
 							array(
-								'post_type'    => array( 'post', 'page' ),
-								'numbersposts' => -1,
+								'post_type'   => apply_filters( 'premia_supported_post_types', array( 'post', 'page' ) ),
+								'numberposts' => -1,
 							)
 						);
 						echo '<select id="' . $field['name'] . '" name="' . $field['name'] . '">';
@@ -117,6 +117,15 @@ class Custom_Fields {
 						echo '</select>';
 						echo '<div><i>' . $field['desc'] . '</i></div>';
 						break;
+					case 'post_link':
+						echo '<label for="' . $field['name'] . '">' . $field['label'] . '</label><br/>';
+						$value = get_post_meta( $post->ID, $field['name'], true );
+						if ( ! empty( $value ) ) {
+							$post = get_post( $value );
+							if ( ! is_wp_error( $post ) ) {
+								echo '<a class="button button-secondary" href="' . get_edit_post_link( $value ) . '">' . $post->post_title . '</a>';
+							}
+						}
 						break;
 					default:
 						echo '<label for="' . $field['name'] . '">' . $field['label'] . '</label><br/>';
