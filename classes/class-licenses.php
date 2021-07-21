@@ -182,10 +182,41 @@ class Licenses {
 	}
 
 	public static function get_license( $license_info ) {
-		return apply_filters( 'premia_get_license', true, $license_info );
+		$license = self::get_linked_post_by_license_key( $license_info['license_key'] );
+		return apply_filters( 'premia_get_license', $license, $license_info );
 	}
 
 	public static function validate_license( $license_info ) {
-		return apply_filters( 'premia_validate_license', true, $license_info );
+		$validate = false;
+
+		if ( ! isset( $license_info['license_key'] ) || empty( $license_info['license_key'] ) ) {
+			Debug::log( 'Cannot validate', $license_info );
+			$validate = false;
+		}
+
+		$license = self::get_license_by_license_key( $license_info['license_key'] );
+
+		$sites = get_post_meta( $license->ID, 'installations', true );
+
+		if ( ! is_array( $sites ) ) {
+			$sites = array();
+		}
+
+		Debug::log( 'Sites: ', $sites, 2 );
+		Debug::log( 'Site: ', $license_info['site_url'], 2 );
+
+		if ( in_array( $license_info['site_url'], $sites, true ) || is_user_logged_in() ) {
+			$validate = true;
+		}
+
+		Debug::log( 'post status:', $license->post_status );
+
+		if ( $license->post_status !== 'publish' ) {
+			$validate = false;
+		}
+
+		Debug::log( 'Validation result: ', $validate );
+
+		return apply_filters( 'premia_validate_license', $validate, $license_info );
 	}
 }

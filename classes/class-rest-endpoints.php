@@ -136,7 +136,7 @@ class REST_Endpoints {
 		$body    = json_decode( wp_remote_retrieve_body( $result ) );
 		$version = $body->tag_name;
 
-		Debug::log( 'Github response: ', $body );
+		Debug::log( 'Github response: ', $body, 2 );
 
 		$base_dir = plugin_dir_path( dirname( __FILE__ ) );
 		Compressor::prepare_directories( $base_dir, $version );
@@ -279,49 +279,7 @@ class REST_Endpoints {
 	 * @return boolean true or false.
 	 */
 	public function validate( $license_info ) {
-
-		$validate = false;
-
-		if ( !isset ($license_info['license_key'] ) || empty($license_info['license_key']) ) {
-			Debug::log('Cannot validate', $license_info);
-			$validate = false;
-		}
-
-		// First check for logged in user
-		if ( is_user_logged_in() ) {
-			$validate = true;
-		}
-
-		$license = Licenses::get_license_by_license_key($license_info['license_key']);
-
-		$sites = get_post_meta( $license->ID, 'installations', true );
-
-		Debug::log('Sites: ', $sites);
-		Debug::log('Site: ', $license_info['site_url']);
-
-		if (in_array($license_info['site_url'], $sites, true)) {
-			$validate = true;
-		}
-
-		Debug::log('Validation result: ',  $validate);
-
-		return $validate;
-	
-		//@todo - License manager dependency.
-		$license  = lmfwc_get_license( $license_info['license_key'] );
-
-		if ($license !== false) {
-			$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
-			if ( in_array( $license_info['site_url'], $installs, true ) || is_user_logged_in() ) {
-				return true;
-			} else {
-				Debug::log('Cannot validate site', $license_info);
-			}
-		} else {
-			Debug::log('Something went wrong while getting the license.', $license);
-		}
-
-		return false;
+		return Licenses::validate_license($license_info);
 	}
 
 	/**
