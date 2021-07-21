@@ -156,9 +156,9 @@ class Custom_Fields {
 			$value = '';
 			if ( isset( $_POST[ $field['name'] ] ) ) {
 				$value = sanitize_text_field( $_POST[ $field['name'] ] );
+				$value = apply_filters( 'premia_update_field', $value, $field, $post_id );
+				update_post_meta( $post_id, $field['name'], $value );
 			}
-			$value = apply_filters( 'premia_update_field', $value, $field, $post_id );
-			update_post_meta( $post_id, $field['name'], $value );
 		}
 	}
 
