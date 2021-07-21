@@ -12,15 +12,17 @@ class Woocommerce_License_Manager_Helper {
 		$this->init();
 	}
 
-	public function init() {
-		add_action( 'woocommerce_account_view-license-keys_endpoint', array( $this, 'manage_installs' ), 20 );
-		add_filter( 'premia_activate_license', array( $this, 'activate' ), 10, 2 );
-		add_filter( 'premia_deactivate_license', array( $this, 'deactivate' ), 10, 2 );
-		add_filter( 'premia_get_license', array( $this, 'get_license' ) );
+	public function is_license_manager_active() {
+		return \function_exists( 'lmfwc' );
 	}
 
-	public function start() {
-		
+	public function init() {
+		if ( $this->is_license_manager_active() ) {
+			add_action( 'woocommerce_account_view-license-keys_endpoint', array( $this, 'manage_installs' ), 20 );
+			add_filter( 'premia_activate_license', array( $this, 'activate' ), 10, 2 );
+			add_filter( 'premia_deactivate_license', array( $this, 'deactivate' ), 10, 2 );
+			add_filter( 'premia_get_license', array( $this, 'get_license' ) );
+		}
 	}
 
 	/**
