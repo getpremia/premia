@@ -22,7 +22,104 @@ class Woocommerce_License_Manager_Helper {
 			add_filter( 'premia_activate_license', array( $this, 'activate' ), 10, 2 );
 			add_filter( 'premia_deactivate_license', array( $this, 'deactivate' ), 10, 2 );
 			add_filter( 'premia_get_license', array( $this, 'get_license' ) );
+			add_filter( 'premia_validate_license', array( $this, 'validate_license' ), 10, 2 );
+			add_filter( 'premia_order_downloads', array( $this, 'add_order_downloads' ) );
+			add_filter( 'premia_woocommerce_downloads', array( $this, 'add_woocommerce_downloads' ) );
 		}
+	}
+
+	public function add_woocommerce_downloads( $downloads ) {
+
+		$user_licenses = apply_filters( 'lmfwc_get_all_customer_license_keys', get_current_user_id() );
+
+		if ( is_array( $user_licenses ) && ! empty( $user_licenses ) ) {
+			foreach ( $user_licenses as $data ) {
+				foreach ( $data['licenses'] as $license ) {
+
+					$post = get_post( $license->getproductId() );
+
+					$license_info = array(
+						'license_key' => $license->getDecryptedLicenseKey(),
+						'site_url'    => '',
+						'plugin'      => $post->post_name,
+						'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
+					);
+
+					$file_name = $post->post_name . '.zip';
+
+					$download_url = get_rest_url() . 'license-updater/v1/download_update';
+					$download_url = add_query_arg( $license_info, $download_url );
+					$downloads[]  = array(
+						'download_url'        => $download_url,
+						'download_id'         => false,
+						'product_id'          => $post->ID,
+						'product_name'        => $data['name'],
+						'product_url'         => get_permalink( $post->ID ),
+						'download_name'       => $file_name,
+						'order_id'            => $license->getOrderId(),
+						'downloads_remaining' => '',
+						'access_expires'      => 'yes',
+						'file'                => array(
+							'name' => $file_name,
+							'file' => $download_url,
+						),
+					);
+				}
+			}
+		}
+
+		return $downloads;
+	}
+
+	public function add_order_downloads( $downloads ) {
+
+		$user_licenses = apply_filters( 'lmfwc_get_customer_license_keys', $order );
+
+		if ( is_array( $user_licenses ) && ! empty( $user_licenses ) ) {
+
+			foreach ( $user_licenses as $data ) {
+				if ( empty( $data['keys'] ) ) {
+					echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '';
+				} else {
+					echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '';
+				}
+				foreach ( $data['keys'] as $license ) {
+					$post         = get_post( $license->getproductId() );
+					$license_info = array(
+						'license_key' => $license->getDecryptedLicenseKey(),
+						'site_url'    => '',
+						'plugin'      => $post->post_name,
+						'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
+					);
+					$download_url = get_rest_url() . 'license-updater/v1/download_update';
+					$download_url = add_query_arg( $license_info, $download_url );
+					$downloads[]  = array(
+						'link' => $download_url,
+						'name' => $data['name'],
+					);
+				}
+			}
+		}
+
+		return $downloads;
+	}
+
+	public function validate_license( $validate, $license_info ) {
+		$validate = false;
+		$license  = lmfwc_get_license( $license_info['license_key'] );
+
+		if ( $license !== false ) {
+			$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
+			if ( in_array( $license_info['site_url'], $installs, true ) || is_user_logged_in() ) {
+				$validate = true;
+			} else {
+				Debug::log( 'Cannot validate site', $license_info );
+			}
+		} else {
+			Debug::log( 'Something went wrong while getting the license.', $license );
+		}
+
+		return $validate;
 	}
 
 	/**
