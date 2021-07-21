@@ -20,6 +20,8 @@ class Woocommerce_Helper {
 	 */
 	public function init() {
 		add_action( 'plugins_loaded', array( $this, 'start' ) );
+		add_filter( 'premia_customize_post_fields', array( $this, 'add_wc_fields' ) );
+		add_filter( 'premia_supported_post_types', array( $this, 'add_product_support' ) );
 	}
 
 	public function is_woocommerce_active() {
@@ -33,7 +35,34 @@ class Woocommerce_Helper {
 			add_filter( 'woocommerce_product_data_tabs', array( $this, 'add_wc_product_tab' ) );
 			add_action( 'woocommerce_product_data_panels', array( $this, 'add_wc_product_data_panel' ) );
 			add_action( 'woocommerce_process_product_meta', array( $this, 'save_wc_product_data_panel' ) );
+			add_filter( 'premia_customize_license_fields', array( $this, 'add_linked_order_field' ) );
+			add_action( 'woocommerce_payment_complete', array( $this, 'maybe_create_licences' ) );
+			add_action( 'woocommerce_order_status_cancelled', array( $this, 'maybe_deactivate_licences' ) );
+			add_action( 'woocommerce_order_refunded', array( $this, 'maybe_deactivate_licences' ) );
 		}
+	}
+
+	public function add_product_support( $post_types ) {
+		$post_types[] = 'product';
+		return $post_types;
+	}
+
+	public function add_wc_fields( $fields ) {
+		if ( get_post_type() === 'product' ) {
+			$fields = array_merge(
+				array(
+					array(
+						'name'    => '_updater_enable_license',
+						'type'    => 'checkbox',
+						'label'   => __( 'Enable licensing', 'premia' ),
+						'desc'    => __( 'Enabling this option will generate licenses for each purchase of this item.', 'premia' ),
+						'visible' => true,
+					),
+				),
+				$fields
+			);
+		}
+		return $fields;
 	}
 
 	/**
@@ -58,7 +87,7 @@ class Woocommerce_Helper {
 	 * Add the panel and it's options
 	 */
 	public function add_wc_product_data_panel() {
-		?><div id="updater_options_data" class="panel woocommerce_options_panel hidden">
+		?><div id="premia_options_data" class="panel woocommerce_options_panel hidden">
 		<?php
 
 		$fields = Custom_Fields::get_fields( 'post' );
@@ -101,9 +130,9 @@ class Woocommerce_Helper {
 	 * @return array $tabs a modified collection of tabs.
 	 */
 	public function add_wc_product_tab( $tabs ) {
-		$tabs['updater_options'] = array(
-			'label'    => __( 'Update options', 'premia' ),
-			'target'   => 'updater_options_data',
+		$tabs['premia_settings'] = array(
+			'label'    => __( 'Premia settings', 'premia' ),
+			'target'   => 'premia_options_data',
 			'class'    => array( 'hide_if_external' ),
 			'priority' => 25,
 		);
@@ -118,39 +147,42 @@ class Woocommerce_Helper {
 	 */
 	public function add_wc_downloads( $downloads ) {
 
+		// @todo - this is dependent on License Manager.
 		$user_licenses = apply_filters( 'lmfwc_get_all_customer_license_keys', get_current_user_id() );
 
-		foreach ( $user_licenses as $data ) {
-			foreach ( $data['licenses'] as $license ) {
+		if ( is_array( $user_licenses ) && ! empty( $user_licenses ) ) {
+			foreach ( $user_licenses as $data ) {
+				foreach ( $data['licenses'] as $license ) {
 
-				$post = get_post( $license->getproductId() );
+					$post = get_post( $license->getproductId() );
 
-				$license_info = array(
-					'license_key' => $license->getDecryptedLicenseKey(),
-					'site_url'    => '',
-					'plugin'      => $post->post_name,
-					'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
-				);
+					$license_info = array(
+						'license_key' => $license->getDecryptedLicenseKey(),
+						'site_url'    => '',
+						'plugin'      => $post->post_name,
+						'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
+					);
 
-				$file_name = $post->post_name . '.zip';
+					$file_name = $post->post_name . '.zip';
 
-				$download_url = get_rest_url() . 'license-updater/v1/download_update';
-				$download_url = add_query_arg( $license_info, $download_url );
-				$downloads[]  = array(
-					'download_url'        => $download_url,
-					'download_id'         => false,
-					'product_id'          => $post->ID,
-					'product_name'        => $data['name'],
-					'product_url'         => get_permalink( $post->ID ),
-					'download_name'       => $file_name,
-					'order_id'            => $license->getOrderId(),
-					'downloads_remaining' => '',
-					'access_expires'      => 'yes',
-					'file'                => array(
-						'name' => $file_name,
-						'file' => $download_url,
-					),
-				);
+					$download_url = get_rest_url() . 'license-updater/v1/download_update';
+					$download_url = add_query_arg( $license_info, $download_url );
+					$downloads[]  = array(
+						'download_url'        => $download_url,
+						'download_id'         => false,
+						'product_id'          => $post->ID,
+						'product_name'        => $data['name'],
+						'product_url'         => get_permalink( $post->ID ),
+						'download_name'       => $file_name,
+						'order_id'            => $license->getOrderId(),
+						'downloads_remaining' => '',
+						'access_expires'      => 'yes',
+						'file'                => array(
+							'name' => $file_name,
+							'file' => $download_url,
+						),
+					);
+				}
 			}
 		}
 
@@ -165,25 +197,95 @@ class Woocommerce_Helper {
 	public function add_downloads( $order ) {
 		echo '<header><h2>' . esc_html__( 'Downloads', 'premia' ) . '</h2></header>';
 
-		$user_licenses = apply_filters( 'lmfwc_get_customer_license_keys', $order );
+		$downloads = array();
 
-		foreach ( $user_licenses as $data ) {
-			if ( empty( $data['keys'] ) ) {
-				echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '';
-			} else {
-				echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '';
-			}
-			foreach ( $data['keys'] as $license ) {
-				$post         = get_post( $license->getproductId() );
+		foreach ( $order->get_items()  as $item ) {
+			$license_id = $item->get_meta( '_premia_linked_license' );
+			$license    = get_post( $license_id );
+			if ( ! is_wp_error( $license ) && $license->post_status === 'publish' ) {
+				$post_id      = get_post_meta( $license_id, '_premia_linked_post_id', true );
+				$post         = get_post( $post_id );
 				$license_info = array(
-					'license_key' => $license->getDecryptedLicenseKey(),
+					'license_key' => $license->post_title,
 					'site_url'    => '',
 					'plugin'      => $post->post_name,
 					'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
+					'post_id'    => $post->ID,
 				);
 				$download_url = get_rest_url() . 'license-updater/v1/download_update';
 				$download_url = add_query_arg( $license_info, $download_url );
-				echo '<p><a class="button" href="' . esc_html( $download_url ) . '">Download ' . esc_html( $data['name'] ) . '</a></p>';
+				$downloads[]  = array(
+					'link' => $download_url,
+					'name' => $post->post_title,
+				);
+			}
+		}
+
+		if ( ! empty( $downloads ) ) {
+			echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '</p>';
+			foreach ( $downloads as $download ) {
+				echo '<p><a class="button" href="' . esc_html( $download['link'] ) . '">Download ' . esc_html( $download['name'] ) . '</a></p>';
+			}
+		} else {
+			echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '</p>';
+		}
+
+		// @todo - this is dependent on License Manager.
+		$user_licenses = apply_filters( 'lmfwc_get_customer_license_keys', $order );
+
+		if ( is_array( $user_licenses ) && ! empty( $user_licenses ) ) {
+
+			foreach ( $user_licenses as $data ) {
+				if ( empty( $data['keys'] ) ) {
+					echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '';
+				} else {
+					echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '';
+				}
+				foreach ( $data['keys'] as $license ) {
+					$post         = get_post( $license->getproductId() );
+					$license_info = array(
+						'license_key' => $license->getDecryptedLicenseKey(),
+						'site_url'    => '',
+						'plugin'      => $post->post_name,
+						'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
+					);
+					$download_url = get_rest_url() . 'license-updater/v1/download_update';
+					$download_url = add_query_arg( $license_info, $download_url );
+					echo '<p><a class="button" href="' . esc_html( $download_url ) . '">Download ' . esc_html( $data['name'] ) . '</a></p>';
+				}
+			}
+		}
+	}
+
+	public function add_linked_order_field( $fields ) {
+		$fields[] = array(
+			'name'    => '_premia_linked_order_id',
+			'label'   => __( 'Linked order ID', 'premia' ),
+			'type'    => 'post_link',
+			'visible' => true,
+		);
+		return $fields;
+	}
+
+	public function maybe_create_licences( $order_id ) {
+		$order = wc_get_order( $order_id );
+		foreach ( $order->get_items() as $item_id => $item ) {
+			$product_id      = $item->get_product_id();
+			$license_enabled = get_post_meta( $product_id, '_updater_enable_license', true );
+			if ( $license_enabled === 'yes' ) {
+				$license_id = Licenses::create_license( $product_id, $order->get_user_id() );
+				update_post_meta( $license_id, '_premia_linked_order_id', $order_id );
+				wc_update_order_item_meta( $item_id, '_premia_linked_license', $license_id );
+			}
+		}
+	}
+
+	public function maybe_deactivate_licences( $order_id ) {
+		$order = wc_get_order( $order_id );
+		foreach ( $order->get_items() as $item ) {
+			$license_id = $item->get_meta( '_premia_linked_license' );
+			if ( ! empty( $license_id ) ) {
+				wp_trash_post( $license_id );
 			}
 		}
 	}
