@@ -10,7 +10,7 @@
  * Plugin Name:       Premia
  * Plugin URI:        https://mklasen.com
  * Description:       Premia
- * Version:           1.1
+ * Version:           0.9.6
  * Requires at least: 5.2
  * Requires PHP:      7.2
  * Author:            Marinus Klasen
