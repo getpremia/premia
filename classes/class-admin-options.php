@@ -13,6 +13,7 @@ class Admin_Options {
 	private $plugin_name = 'premia';
 
 	public function __construct() {
+		$this->api_url = apply_filters( 'premia_api_url', $this->api_url );
 		$this->init();
 	}
 
@@ -58,7 +59,7 @@ class Admin_Options {
 				Debug::log( 'Executing request to: ' . $url, $args );
 
 				$activate = wp_remote_post(
-					$this->api_url . 'activate',
+					$this->api_url . $action,
 					$args
 				);
 
