@@ -37,7 +37,7 @@ class Github {
 
 		$request = wp_remote_get( $url, $args );
 
-		Debug::log( 'Answer: ', wp_remote_retrieve_body( $request ) );
+		Debug::log( 'Answer: ', wp_remote_retrieve_body( $request ), 2 );
 
 		return $request;
 	}

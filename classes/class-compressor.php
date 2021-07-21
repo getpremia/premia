@@ -44,7 +44,7 @@ class Compressor {
 		// Full path to unpacked folder.
 		$unpacked_path = $base_dir . 'tmp/unpacked/' . $version . $unpacked_folder;
 
-		Debug::log( 'Iterate: ', $unpacked_path );
+		Debug::log( 'Iterate: ', $unpacked_path, 2 );
 
 		// Create a new zip file.
 		$repack = new \ZipArchive();
