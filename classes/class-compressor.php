@@ -12,7 +12,7 @@ class Compressor {
 	/**
 	 * Generate a ZIP file
 	 */
-	public static function generate_zip( $base_dir, $version, $archive_path, $plugin_name, $file_path ) {
+	public static function generate_zip( $base_dir, $version, $archive_path, $plugin_name, $file_path, $type = 'source' ) {
 
 		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
 		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
@@ -30,15 +30,21 @@ class Compressor {
 		// Scan the unpacked contents
 		$unpacked_contents = scandir( $base_dir . 'tmp/unpacked/' . $version );
 
-		// Get the name of the unpacked folder.
-		foreach ( $unpacked_contents as $folder ) {
-			if ( ! is_file( $folder ) ) {
-				$unpacked_folder = $folder;
+		$unpacked_folder = '';
+
+		if ( $type === 'source' ) {
+			// Get the name of the unpacked folder.
+			foreach ( $unpacked_contents as $folder ) {
+				if ( ! is_file( $folder ) ) {
+					$unpacked_folder = '/' . $folder;
+				}
 			}
 		}
 
 		// Full path to unpacked folder.
-		$unpacked_path = $base_dir . 'tmp/unpacked/' . $version . '/' . $unpacked_folder;
+		$unpacked_path = $base_dir . 'tmp/unpacked/' . $version . $unpacked_folder;
+
+		Debug::log( 'Iterate: ', $unpacked_path );
 
 		// Create a new zip file.
 		$repack = new \ZipArchive();
