@@ -33,8 +33,8 @@ class Licenses {
 	}
 
 	public function manage_columns( $columns ) {
-		unset( $columns['author'] );
-		$columns['post'] = __( 'Linked post', 'premia' );
+		$columns['post']     = __( 'Linked post', 'premia' );
+		$columns['customer'] = __( 'Customer', 'premia' );
 		return $columns;
 	}
 
@@ -44,6 +44,10 @@ class Licenses {
 				$linked_id = get_post_meta( $post_id, '_premia_linked_post_id', true );
 				echo '<a href="' . get_edit_post_link( $linked_id ) . '">' . get_the_title( $linked_id ) . '</a>';
 				break;
+			case 'customer':
+				$customer  = get_post_field( 'post_author', $post_id );
+				$user_data = get_userdata( $customer );
+				echo '<a href="' . get_edit_user_link( $customer ) . '">' . $user_data->data->display_name . '</a>';
 		}
 	}
 
@@ -53,7 +57,7 @@ class Licenses {
 			array(
 				'public'             => true,
 				'label'              => 'Licenses',
-				'description'        => 'Recipe custom post type.',
+				'description'        => 'Custom Post Type for Premia Licenses',
 				'public'             => false,
 				'publicly_queryable' => false,
 				'show_ui'            => true,
@@ -73,7 +77,11 @@ class Licenses {
 	public function insert_license( $data, $post_data ) {
 		if ( $data['post_type'] === 'prem_license' && $data['post_status'] !== 'auto-draft' ) {
 
-			$existing = post_exists( $data['post_title'] );
+			if ( ! is_admin() ) {
+				require_once ABSPATH . 'wp-admin/includes/post.php';
+			}
+
+			$existing = \post_exists( $data['post_title'] );
 
 			if ( $existing && $existing !== $post_data['ID'] ) {
 				$data['post_title'] = $this->generate_license( $post_data['ID'] );
@@ -91,34 +99,93 @@ class Licenses {
 		return false;
 	}
 
-	public function generate_license( $post_id ) {
+	public static function generate_license( $post_id = false ) {
+		if ( ! is_admin() ) {
+			require_once ABSPATH . 'wp-admin/includes/post.php';
+		}
 		$license_key = implode( '-', str_split( substr( md5( random_bytes( 16 ) ), 0, 16 ), 4 ) );
-		$existing    = post_exists( $license_key );
+		$existing    = \post_exists( $license_key );
 		if ( $existing && $existing !== $post_id ) {
 			return $this->generate_license();
 		}
 		return strtoupper( $license_key );
 	}
 
-	public function create_license() {
-		return wp_insert_post(
+	public static function create_license( $product_id, $user_id ) {
+		$license_id = wp_insert_post(
 			array(
-				'post_title'  => $this->generate_license(),
+				'post_title'  => self::generate_license(),
 				'post_status' => 'publish',
 				'post_type'   => 'prem_license',
+				'post_author' => $user_id,
 			)
 		);
+
+		if ( ! is_wp_error( $license_id ) ) {
+			update_post_meta( $license_id, '_premia_linked_post_id', $product_id );
+		}
+
+		return $license_id;
+	}
+
+	public static function add_site( $license_key, $site_url ) {
+		$post = self::get_license_by_license_key( $license_key );
+		if ( $post !== null ) {
+			$sites = get_post_meta( $post->ID, 'installations', true );
+			if ( ! is_array( $sites ) ) {
+				$sites = array();
+			}
+			if ( ! in_array( $site_url, $sites, true ) ) {
+				$sites[] = $site_url;
+			}
+			update_post_meta( $post->ID, 'installations', $sites );
+		}
+	}
+
+	public static function remove_site( $license_key, $site_url ) {
+		Debug::log( 'Remove site: ' . $site_url );
+		$post = self::get_license_by_license_key( $license_key );
+		if ( $post !== null ) {
+			$sites = get_post_meta( $post->ID, 'installations', true );
+
+			Debug::log( 'Remove site: ' . $site_url );
+
+			if ( is_array( $sites ) && in_array( $site_url, $sites, true ) ) {
+				$sites = array_filter(
+					$sites,
+					function( $e ) use ( $site_url ) {
+						return ( $e !== $site_url );
+					}
+				);
+			}
+			update_post_meta( $post->ID, 'installations', $sites );
+		}
+	}
+
+	public static function get_license_by_license_key( $license_key ) {
+		return get_page_by_title( $license_key, OBJECT, 'prem_license' );
+	}
+
+	public static function get_linked_post_by_license_key( $license_key ) {
+		$post = get_license_by_license_key( $license_key );
+		return get_post_meta( $post->ID, '_premia_linked_post_id', true );
 	}
 
 	public static function activate( $license_info ) {
+		self::add_site( $license_info['license_key'], $license_info['site_url'] );
 		return apply_filters( 'premia_activate_license', true, $license_info );
 	}
 
 	public static function deactivate( $license_info ) {
-		return apply_filters( 'premia_activate_license', true, $license_info );
+		self::remove_site( $license_info['license_key'], $license_info['site_url'] );
+		return apply_filters( 'premia_deactivate_license', true, $license_info );
 	}
 
 	public static function get_license( $license_info ) {
 		return apply_filters( 'premia_get_license', true, $license_info );
+	}
+
+	public static function validate_license( $license_info ) {
+		return apply_filters( 'premia_validate_license', true, $license_info );
 	}
 }
