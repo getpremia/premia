@@ -14,6 +14,7 @@ class Github {
 	 * @param string $api_token The token to use.
 	 * @param string $url The path to rewuest to.
 	 * @param array  $args a collection of arguments for wp_remote_get.
+	 * @param string $download_type ZIP or something else?
 	 */
 	public static function request( $data, $url, $args = array(), $download_type = false ) {
 
