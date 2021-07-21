@@ -145,8 +145,10 @@ class REST_Endpoints {
 		if ( is_array( $body->assets ) && ! empty( $body->assets ) ) {
 			$release = reset( $body->assets );
 			$zip_url = str_replace( $github_data['api_url'], '', $release->url );
+			$type    = 'asset';
 		} else {
 			$zip_url = str_replace( $github_data['api_url'], '', $body->zipball_url );
+			$type    = 'source';
 		}
 
 		// Get the ZIP.
@@ -155,10 +157,10 @@ class REST_Endpoints {
 		$archive_path = $base_dir . 'tmp/zip/' . $version . '/' . $plugin_file;
 
 		// If the ZIP does not exist, generate it.
-		// @todo Maybe check the modified time of the file, if older then (plugin settings option) then..
+		// @todo Add caching: Maybe check the modified time of the file, if older then (plugin settings option) then..
 		// @todo use the file name of the github repo, not from WordPress post/product..
 		if ( ! is_file( $archive_path ) || ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ) {
-			$archive_path = Compressor::generate_zip( $base_dir, $version, $archive_path, $post->post_name, $file_path );
+			$archive_path = Compressor::generate_zip( $base_dir, $version, $archive_path, $post->post_name, $file_path, $type );
 		}
 
 		// Set the correct headers.
@@ -266,6 +268,8 @@ class REST_Endpoints {
 			}
 		}
 
+		Debug::log('Check updates answer: ', $output);
+
 		return $output;
 	}
 
@@ -275,10 +279,35 @@ class REST_Endpoints {
 	 * @return boolean true or false.
 	 */
 	public function validate( $license_info ) {
-		if (!isset($license_info['license_key'])) {
+
+		$validate = false;
+
+		if ( !isset ($license_info['license_key'] ) || empty($license_info['license_key']) ) {
 			Debug::log('Cannot validate', $license_info);
-			return false;
+			$validate = false;
 		}
+
+		// First check for logged in user
+		if ( is_user_logged_in() ) {
+			$validate = true;
+		}
+
+		$license = Licenses::get_license_by_license_key($license_info['license_key']);
+
+		$sites = get_post_meta( $license->ID, 'installations', true );
+
+		Debug::log('Sites: ', $sites);
+		Debug::log('Site: ', $license_info['site_url']);
+
+		if (in_array($license_info['site_url'], $sites, true)) {
+			$validate = true;
+		}
+
+		Debug::log('Validation result: ',  $validate);
+
+		return $validate;
+	
+		//@todo - License manager dependency.
 		$license  = lmfwc_get_license( $license_info['license_key'] );
 
 		if ($license !== false) {
@@ -312,16 +341,18 @@ class REST_Endpoints {
 
 		switch ( $action ) {
 			case 'deactivate':
-				$deactivate = Licenses::deactivate( $license_info );
-				if ( ! $deactivate ) {
+				Debug::log( 'Deactivate license', $license_info );
+				$result = Licenses::deactivate( $license_info );
+				if ( ! $result ) {
 					Debug::log( 'Failed to deactivate license', $license_info );
 					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
 				}
 				break;
 
 			case 'activate':
-				$activate = Licenses::activate( $license_info );
-				if ( ! $activate ) {
+				Debug::log( 'Activate license', $license_info );
+				$result = Licenses::activate( $license_info );
+				if ( ! $result ) {
 					Debug::log( 'Failed to activate license', $license_info );
 					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
 				}
@@ -332,7 +363,7 @@ class REST_Endpoints {
 				return new \WP_REST_Response( array( 'error' => 'No action provided.' ), 400 );
 				break;
 		}
-		return $activate;
+		return $result;
 	}
 
 	/**
