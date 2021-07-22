@@ -112,7 +112,7 @@ class REST_Endpoints {
 
 		// Can't validate? bail.
 		if ( ! $validate ) {
-			Debug::log( 'Failed validation.', array( $validate, $do_not_validate ) );
+			Debug::log( 'Failed validation.', $validate );
 			return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
 		}
 

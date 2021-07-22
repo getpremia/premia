@@ -12,23 +12,42 @@ class Woocommerce_License_Manager_Helper {
 		$this->init();
 	}
 
-	public function is_license_manager_active() {
-		return \function_exists( 'lmfwc' );
+	public function init() {
+		add_action( 'plugins_loaded', array( $this, 'start' ), 5 );
 	}
 
-	public function init() {
+	public static function is_license_manager_active() {
+		return \class_exists( 'LicenseManagerForWooCommerce\Main' );
+	}
+
+	public function start() {
 		if ( $this->is_license_manager_active() ) {
 			add_action( 'woocommerce_account_view-license-keys_endpoint', array( $this, 'manage_installs' ), 20 );
 			add_filter( 'premia_activate_license', array( $this, 'activate' ), 10, 2 );
 			add_filter( 'premia_deactivate_license', array( $this, 'deactivate' ), 10, 2 );
 			add_filter( 'premia_get_license', array( $this, 'get_license' ) );
 			add_filter( 'premia_validate_license', array( $this, 'validate_license' ), 10, 2 );
-			add_filter( 'premia_order_downloads', array( $this, 'add_order_downloads' ) );
+			add_filter( 'premia_order_downloads', array( $this, 'add_order_downloads' ), 10, 2 );
 			add_filter( 'premia_woocommerce_downloads', array( $this, 'add_woocommerce_downloads' ) );
+			add_filter( 'premia_get_license_by_license_key', array( $this, 'get_license_by_license_key' ), 10, 2 );
+			add_filter( 'premia_get_installations', array( $this, 'get_installations' ), 10, 2 );
+			add_filter( 'premia_is_license_active', array( $this, 'is_license_active' ), 10, 2 );
 		}
 	}
 
+	public function is_license_active( $status, $license_key ) {
+		$license = $this->get_license( $license_key );
+		// @todo
+		return $status;
+	}
+
+	public function get_license_by_license_key( $post, $license_key ) {
+		return $this->get_license( $license_key );
+	}
+
 	public function add_woocommerce_downloads( $downloads ) {
+
+		$downloads = array();
 
 		$user_licenses = apply_filters( 'lmfwc_get_all_customer_license_keys', get_current_user_id() );
 
@@ -71,18 +90,15 @@ class Woocommerce_License_Manager_Helper {
 		return $downloads;
 	}
 
-	public function add_order_downloads( $downloads ) {
+	public function add_order_downloads( $downloads, $order ) {
+		
+		$downloads = array();
 
 		$user_licenses = apply_filters( 'lmfwc_get_customer_license_keys', $order );
 
 		if ( is_array( $user_licenses ) && ! empty( $user_licenses ) ) {
 
 			foreach ( $user_licenses as $data ) {
-				if ( empty( $data['keys'] ) ) {
-					echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '';
-				} else {
-					echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '';
-				}
 				foreach ( $data['keys'] as $license ) {
 					$post         = get_post( $license->getproductId() );
 					$license_info = array(
@@ -204,7 +220,16 @@ class Woocommerce_License_Manager_Helper {
 		return true;
 	}
 
-	public function get_license( $license_info ) {
-		return lmfwc_get_license( $license_info['license_key'] );
+	public function get_license( $license_key ) {
+		$license = lmfwc_get_license( $license_key );
+		return $license;
+	}
+
+	public function get_installations( $sites, $license_key ) {
+		$license = $this->get_license( $license_key );
+		if ( $license !== false ) {
+			$sites = lmfwc_get_license_meta( $license->getId(), 'installations', false );
+		}
+		return $sites;
 	}
 }

@@ -163,7 +163,7 @@ class Licenses {
 	}
 
 	public static function get_license_by_license_key( $license_key ) {
-		return get_page_by_title( $license_key, OBJECT, 'prem_license' );
+		return apply_filters( 'premia_get_license_by_license_key', get_page_by_title( $license_key, OBJECT, 'prem_license' ), $license_key );
 	}
 
 	public static function get_linked_post_by_license_key( $license_key ) {
@@ -202,9 +202,7 @@ class Licenses {
 			return false;
 		}
 
-		$license = self::get_license_by_license_key( $license_info['license_key'] );
-
-		$sites = get_post_meta( $license->ID, 'installations', true );
+		$sites = self::get_installations( $license_info['license_key'] );
 
 		if ( ! is_array( $sites ) ) {
 			$sites = array();
@@ -217,14 +215,33 @@ class Licenses {
 			$validate = true;
 		}
 
-		Debug::log( 'post status:', $license->post_status );
-
-		if ( $license->post_status !== 'publish' ) {
-			$validate = false;
-		}
-
 		Debug::log( 'Validation result: ', $validate );
 
 		return apply_filters( 'premia_validate_license', $validate, $license_info );
+	}
+
+	public static function is_license_active( $license_key ) {
+		$license = self::get_license_by_license_key( $license_key );
+
+		if ( is_a( $license, 'WP_Post' ) ) {
+
+			Debug::log( 'post status:', $license->post_status );
+
+			if ( $license->post_status !== 'publish' ) {
+				$validate = false;
+			}
+		}
+
+		return apply_filters( 'premia_is_license_active', $validate, $license_key );
+
+	}
+
+	public static function get_installations( $license_key ) {
+		$sites   = array();
+		$license = self::get_license_by_license_key( $license_key );
+		if ( is_a( $license, 'WP_Post' ) ) {
+			$sites = get_post_meta( $license->ID, 'installations', true );
+		}
+		return apply_filters( 'premia_get_installations', $sites, $license_key );
 	}
 }

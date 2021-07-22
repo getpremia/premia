@@ -19,9 +19,7 @@ class Woocommerce_Helper {
 	 * Initiator.
 	 */
 	public function init() {
-		add_action( 'plugins_loaded', array( $this, 'start' ) );
-		add_filter( 'premia_customize_post_fields', array( $this, 'add_wc_fields' ) );
-		add_filter( 'premia_supported_post_types', array( $this, 'add_product_support' ) );
+		add_action( 'plugins_loaded', array( $this, 'start' ), 10 );
 	}
 
 	public function is_woocommerce_active() {
@@ -36,10 +34,19 @@ class Woocommerce_Helper {
 			add_action( 'woocommerce_product_data_panels', array( $this, 'add_wc_product_data_panel' ) );
 			add_action( 'woocommerce_process_product_meta', array( $this, 'save_wc_product_data_panel' ) );
 			add_filter( 'premia_customize_license_fields', array( $this, 'add_linked_order_field' ) );
+			add_filter( 'premia_customize_post_fields', array( $this, 'add_wc_fields' ) );
+			add_filter( 'premia_supported_post_types', array( $this, 'add_product_support' ) );
+		}
+
+		if ( ! Woocommerce_License_Manager_Helper::is_license_manager_active() ) {
 			add_action( 'woocommerce_payment_complete', array( $this, 'maybe_create_licences' ) );
 			add_action( 'woocommerce_order_status_cancelled', array( $this, 'maybe_deactivate_licences' ) );
 			add_action( 'woocommerce_order_refunded', array( $this, 'maybe_deactivate_licences' ) );
 		}
+	}
+
+	public function show_msg() {
+		echo 'test';
 	}
 
 	public function add_product_support( $post_types ) {
@@ -154,6 +161,7 @@ class Woocommerce_Helper {
 				'post_author' => get_current_user_id(),
 				'numberposts' => -1,
 				'post_type'   => 'prem_license',
+				'post_status' => 'publish',
 			)
 		);
 
@@ -208,23 +216,27 @@ class Woocommerce_Helper {
 
 		foreach ( $order->get_items()  as $item ) {
 			$license_id = $item->get_meta( '_premia_linked_license' );
-			$license    = get_post( $license_id );
-			if ( is_a( $license, 'WP_Post' ) && $license->post_status === 'publish' ) {
-				$post_id      = get_post_meta( $license_id, '_premia_linked_post_id', true );
-				$post         = get_post( $post_id );
-				$license_info = array(
-					'license_key' => $license->post_title,
-					'site_url'    => '',
-					'plugin'      => $post->post_name,
-					'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
-					'post_id'     => $post->ID,
-				);
-				$download_url = get_rest_url() . 'license-updater/v1/download_update';
-				$download_url = add_query_arg( $license_info, $download_url );
-				$downloads[]  = array(
-					'link' => $download_url,
-					'name' => $post->post_title,
-				);
+			if ( ! empty( $license_id ) ) {
+				$license = get_post( $license_id );
+				if ( $license->post_status === 'publish' ) {
+					if ( is_a( $license, 'WP_Post' ) && $license->post_status === 'publish' ) {
+						$post_id      = get_post_meta( $license_id, '_premia_linked_post_id', true );
+						$post         = get_post( $post_id );
+						$license_info = array(
+							'license_key' => $license->post_title,
+							'site_url'    => '',
+							'plugin'      => $post->post_name,
+							'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
+							'post_id'     => $post->ID,
+						);
+						$download_url = get_rest_url() . 'license-updater/v1/download_update';
+						$download_url = add_query_arg( $license_info, $download_url );
+						$downloads[]  = array(
+							'link' => $download_url,
+							'name' => $post->post_title,
+						);
+					}
+				}
 			}
 		}
 
