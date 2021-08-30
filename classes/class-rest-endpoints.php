@@ -86,6 +86,8 @@ class REST_Endpoints {
 
 		$license_info = $request->get_params();
 
+		$post = false;
+
 		// If the user is not logged in and we can't validate the license_info, bail.
 		if ( ! $this->validate_request( $license_info ) ) {
 			Debug::log( 'Validate failed.', $license_info );
@@ -96,11 +98,24 @@ class REST_Endpoints {
 			$post = get_post( intval( $license_info['post_id'] ) );
 		} else {
 			// Get the post that contains information about this download.
-			$post = get_page_by_path( $license_info['plugin'], OBJECT, 'product' );
+			$posts = get_posts(
+				array(
+					'post_type'   => 'any',
+					'name'        => $license_info['plugin'],
+					'post_status' => 'publish',
+				)
+			);
+			if ( is_array( $posts ) && ! empty( $posts ) ) {
+				$post = reset( $posts );
+				if ( ! is_wp_error( $post ) ) {
+					$license_info['post_id'] = $post->ID;
+				}
+			}
 		}
 
-		if ( is_wp_error( $post ) || $post === null ) {
+		if ( is_wp_error( $post ) || $post === null || $post === false ) {
 			Debug::log( 'Error on $post.', $post );
+			Debug::log( 'License info:', $license_info );
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
 		}
 
