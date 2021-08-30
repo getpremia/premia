@@ -182,11 +182,11 @@ class REST_Endpoints {
 		}
 
 		// Bring back the ZIP!
-		//phpcs:disable
+		//phpcs:ignore
 		echo file_get_contents($archive_path);
 
 		// Delete files
-		Compressor::clean($base_dir . 'tmp');
+		Compressor::clean( $base_dir . 'tmp' );
 
 		exit();
 	}
@@ -202,7 +202,7 @@ class REST_Endpoints {
 
 		$license_info = $request->get_params();
 
-		Debug::log('Check updates', $license_info);
+		Debug::log( 'Check updates', $license_info );
 
 		$output = array(
 			'name'         => '',
@@ -213,63 +213,65 @@ class REST_Endpoints {
 			),
 		);
 
-		if (!isset($license_info['plugin']) || empty($license_info['plugin'])) {
+		if ( ! isset( $license_info['plugin'] ) || empty( $license_info['plugin'] ) ) {
 			$output['name'] = 'No plugin provided';
-			Debug::log('Missing plugin name');
+			Debug::log( 'Missing plugin name' );
 		}
 
 		if ( ! isset( $license_info['license_key'] ) || ! isset( $license_info['site_url'] ) || ! isset( $license_info['plugin'] ) ) {
 			$output['name'] = 'License information incomplete.';
-			Debug::log('Missing license key or site url');
+			Debug::log( 'Missing license key or site url' );
 		}
 
 		if ( ! $this->validate_request( $license_info ) ) {
 			$output['name'] = 'Cannot validate request.';
 		}
-		
-		if ( isset( $license_info['plugin'] ) && !empty( $license_info['plugin'] ) ) { 
 
-			$posts = get_posts(array(
-				'post_type' => array('post', 'page', 'product'),
-				'post_status' => 'publish',
-				'name' => $license_info['plugin']
-			));
+		if ( isset( $license_info['plugin'] ) && ! empty( $license_info['plugin'] ) ) {
 
-			if (!is_array($posts) || empty($posts)) {
+			$posts = get_posts(
+				array(
+					'post_type'   => 'any',
+					'post_status' => 'publish',
+					'name'        => $license_info['plugin'],
+				)
+			);
+
+			if ( ! is_array( $posts ) || empty( $posts ) ) {
 				$output['name'] = 'Plugin cannot be found.';
-				Debug::log('No results for query. ', $posts);
+				Debug::log( 'No results for query. ', $posts );
 			} else {
-				$post = reset($posts);
+				$post           = reset( $posts );
 				$output['name'] = $post->post_title;
 
 				$github_data = Github::get_meta_data( $post->ID );
 
-				Debug::log('Post ID: ' . $post->ID);
-				Debug::log('Repo used for Github API: ' . $github_data['api_url']);
+				Debug::log( 'Post ID: ' . $post->ID );
+				Debug::log( 'Repo used for Github API: ' . $github_data['api_url'] );
 
-				if (isset($license_info['tag']) && !empty($license_info['tag'])) {
-					$latest      = Github::request( $github_data, '/releases/tags/' . $license_info['tag'] );
+				if ( isset( $license_info['tag'] ) && ! empty( $license_info['tag'] ) ) {
+					$latest = Github::request( $github_data, '/releases/tags/' . $license_info['tag'] );
 				} else {
-					$latest      = Github::request( $github_data, '/releases/latest' );
+					$latest = Github::request( $github_data, '/releases/latest' );
 				}
 
-				if ( ! is_wp_error($latest) && wp_remote_retrieve_response_code( $latest ) === 200 ) {
-					$latest_info = json_decode( wp_remote_retrieve_body( $latest ) );
-					$output['version'] = $latest_info->tag_name;
+				if ( ! is_wp_error( $latest ) && wp_remote_retrieve_response_code( $latest ) === 200 ) {
+					$latest_info                       = json_decode( wp_remote_retrieve_body( $latest ) );
+					$output['version']                 = $latest_info->tag_name;
 					$output['sections']['description'] = $latest_info->body;
 				} else {
 					$output['name'] = 'Failed to get the latest version information.';
-					Debug::log('Failed to get the latest version information. Did you set the right token?', $latest);
+					Debug::log( 'Failed to get the latest version information. Did you set the right token?', $latest );
 				}
 
-				if (empty($output['sections']['description'])) {
-					$output['sections']['description'] = '<p>This release contains version '.$output['version'].' of the '.$output['name'].' plugin</p>';
+				if ( empty( $output['sections']['description'] ) ) {
+					$output['sections']['description'] = '<p>This release contains version ' . $output['version'] . ' of the ' . $output['name'] . ' plugin</p>';
 				}
 
-				$download_url = add_query_arg( $license_info, get_rest_url() . 'license-updater/v1/download_update' );
-				$do_not_validate = get_post_meta($post->ID, '_updater_do_not_validate_licenses', true);
+				$download_url    = add_query_arg( $license_info, get_rest_url() . 'license-updater/v1/download_update' );
+				$do_not_validate = get_post_meta( $post->ID, '_updater_do_not_validate_licenses', true );
 
-				if ($do_not_validate === 'on') {
+				if ( $do_not_validate === 'on' ) {
 					$output['download_url'] = $download_url;
 				} else {
 					$validate = $this->validate( $license_info );
@@ -277,11 +279,10 @@ class REST_Endpoints {
 						$output['download_url'] = $download_url;
 					}
 				}
-
 			}
 		}
 
-		Debug::log('Check updates answer: ', $output);
+		Debug::log( 'Check updates answer: ', $output );
 
 		return $output;
 	}
@@ -292,7 +293,7 @@ class REST_Endpoints {
 	 * @return boolean true or false.
 	 */
 	public function validate( $license_info ) {
-		return Licenses::validate_license($license_info);
+		return Licenses::validate_license( $license_info );
 	}
 
 	/**
@@ -304,11 +305,11 @@ class REST_Endpoints {
 
 		$defaults = array(
 			'license_key' => '',
-			'site_url' => '',
-			'action' => '',
+			'site_url'    => '',
+			'action'      => '',
 		);
 
-		$license_info = wp_parse_args($license_info, $defaults);
+		$license_info = wp_parse_args( $license_info, $defaults );
 
 		switch ( $action ) {
 			case 'deactivate':
@@ -342,25 +343,24 @@ class REST_Endpoints {
 	 */
 	public function validate_request( $license_info ) {
 
-		$success = true;
+		$success         = true;
 		$do_not_validate = false;
 
 		if ( isset( $license_info['post_id'] ) ) {
-			$do_not_validate = get_post_meta($license_info['post_id'], '_updater_do_not_validate_licenses', true);
+			$do_not_validate = get_post_meta( $license_info['post_id'], '_updater_do_not_validate_licenses', true );
 		}
 
-		if ( ! is_user_logged_in() && $do_not_validate !== 'on') {
+		if ( ! is_user_logged_in() && $do_not_validate !== 'on' ) {
 
 			if ( strpos( $_SERVER['HTTP_USER_AGENT'], 'WordPress' ) === false ) {
 				$success = false;
-				Debug::log('Can\'t verify if request came from WordPress.', $_SERVER['HTTP_USER_AGENT']);
+				Debug::log( 'Can\'t verify if request came from WordPress.', $_SERVER['HTTP_USER_AGENT'] );
 			}
 
-			if ( isset( $license_info['site_url']) && !empty( $license_info['site_url']) && ( isset($_SERVER['HTTP_USER_AGENT']) && strpos( $_SERVER['HTTP_USER_AGENT'], $license_info['site_url'] ) === false) ) {
+			if ( isset( $license_info['site_url'] ) && ! empty( $license_info['site_url'] ) && ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( $_SERVER['HTTP_USER_AGENT'], $license_info['site_url'] ) === false ) ) {
 				$success = false;
-				Debug::log('Can\'t verify if request came from website.', array($_SERVER['HTTP_USER_AGENT'], $license_info['site_url']));
+				Debug::log( 'Can\'t verify if request came from website.', array( $_SERVER['HTTP_USER_AGENT'], $license_info['site_url'] ) );
 			}
-			
 		}
 
 		return $success;
