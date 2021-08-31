@@ -112,6 +112,13 @@ class Licenses {
 	}
 
 	public static function create_license( $product_id, $user_id ) {
+		Debug::log(
+			'Create license for: ',
+			array(
+				'product_id' => $product_id,
+				'user_id'    => $user_id,
+			)
+		);
 		$license_id = wp_insert_post(
 			array(
 				'post_title'  => self::generate_license(),
@@ -129,6 +136,7 @@ class Licenses {
 	}
 
 	public static function add_site( $license_key, $site_url ) {
+		Debug::log( 'Add site: ' . $site_url );
 		$post = self::get_license_by_license_key( $license_key );
 		if ( $post !== null ) {
 			$sites = get_post_meta( $post->ID, 'installations', true );
@@ -147,9 +155,6 @@ class Licenses {
 		$post = self::get_license_by_license_key( $license_key );
 		if ( $post !== null ) {
 			$sites = get_post_meta( $post->ID, 'installations', true );
-
-			Debug::log( 'Remove site: ' . $site_url );
-
 			if ( is_array( $sites ) && in_array( $site_url, $sites, true ) ) {
 				$sites = array_filter(
 					$sites,
