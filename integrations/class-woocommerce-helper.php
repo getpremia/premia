@@ -40,13 +40,19 @@ class Woocommerce_Helper {
 
 		if ( ! Woocommerce_License_Manager_Helper::is_license_manager_active() ) {
 			add_action( 'woocommerce_payment_complete', array( $this, 'maybe_create_licences' ) );
+			add_action( 'woocommerce_order_status_completed', array( $this, 'maybe_create_licences' ) );
 			add_action( 'woocommerce_order_status_cancelled', array( $this, 'maybe_deactivate_licences' ) );
 			add_action( 'woocommerce_order_refunded', array( $this, 'maybe_deactivate_licences' ) );
+			add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( $this, 'format_license_meta' ), 10, 2 );
 		}
 	}
 
-	public function show_msg() {
-		echo 'test';
+	public function format_license_meta( $formatted_meta, $item ) {
+		foreach ( $formatted_meta as &$meta ) {
+			$meta->display_key   = __( 'License', 'premia' );
+			$meta->display_value = '<a href="' . get_edit_post_link( $meta->value ) . '">' . get_the_title( $meta->value ) . '</a>';
+		}
+		return $formatted_meta;
 	}
 
 	public function add_product_support( $post_types ) {
@@ -263,23 +269,33 @@ class Woocommerce_Helper {
 	}
 
 	public function maybe_create_licences( $order_id ) {
-		$order = wc_get_order( $order_id );
-		foreach ( $order->get_items() as $item_id => $item ) {
-			$product_id      = $item->get_product_id();
-			$license_enabled = get_post_meta( $product_id, '_updater_enable_license', true );
-			if ( $license_enabled === 'yes' ) {
-				$license_id = Licenses::create_license( $product_id, $order->get_user_id() );
-				update_post_meta( $license_id, '_premia_linked_order_id', $order_id );
-				wc_update_order_item_meta( $item_id, '_premia_linked_license', $license_id );
+		Debug::log( 'Maybe create license: ', $order_id );
+		$order           = wc_get_order( $order_id );
+		$license_created = $order->get_meta( '_license_created' );
+		Debug::log( 'License created?: ', $license_created );
+		if ( empty( $license_created ) || false === $license_created ) {
+			Debug::log( 'Create license: ', $order_id );
+			foreach ( $order->get_items() as $item_id => $item ) {
+				$product_id      = $item->get_product_id();
+				$license_enabled = get_post_meta( $product_id, '_updater_enable_license', true );
+				if ( $license_enabled === 'yes' ) {
+					$license_id = Licenses::create_license( $product_id, $order->get_user_id() );
+					update_post_meta( $license_id, '_premia_linked_order_id', $order_id );
+					wc_update_order_item_meta( $item_id, '_premia_linked_license', $license_id );
+				}
 			}
+			$order->update_meta_data( '_license_created', true );
+			$order->save();
 		}
 	}
 
 	public function maybe_deactivate_licences( $order_id ) {
+		Debug::log( 'Maybe deactivate license: ', $order_id );
 		$order = wc_get_order( $order_id );
 		foreach ( $order->get_items() as $item ) {
 			$license_id = $item->get_meta( '_premia_linked_license' );
 			if ( ! empty( $license_id ) ) {
+				Debug::log( 'Trash license: ', $license_id );
 				wp_trash_post( $license_id );
 			}
 		}
