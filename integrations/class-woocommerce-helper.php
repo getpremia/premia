@@ -44,6 +44,7 @@ class Woocommerce_Helper {
 			add_action( 'woocommerce_order_status_cancelled', array( $this, 'maybe_deactivate_licences' ) );
 			add_action( 'woocommerce_order_refunded', array( $this, 'maybe_deactivate_licences' ) );
 			add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( $this, 'format_license_meta' ), 10, 2 );
+			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'add_licenses' ) );
 		}
 	}
 
@@ -255,6 +256,48 @@ class Woocommerce_Helper {
 			}
 		} else {
 			echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '</p>';
+		}
+	}
+
+	/**
+	 * Add the licenses on the thank you page.
+	 *
+	 * @param object $order a WC_Order object.
+	 */
+	public function add_licenses( $order ) {
+		echo '<header><h2>' . esc_html__( 'Licenses', 'premia' ) . '</h2></header>';
+
+		$licenses = array();
+
+		foreach ( $order->get_items()  as $item ) {
+			$license_id = $item->get_meta( '_premia_linked_license' );
+			if ( ! empty( $license_id ) ) {
+				$license = get_post( $license_id );
+				if ( $license->post_status === 'publish' ) {
+					if ( is_a( $license, 'WP_Post' ) && $license->post_status === 'publish' ) {
+						$post_id    = get_post_meta( $license_id, '_premia_linked_post_id', true );
+						$post       = get_post( $post_id );
+						$licenses[] = array(
+							'license_key' => $license->post_title,
+							'name'        => $post->post_title,
+							'post_id'     => $post->ID,
+						);
+					}
+				}
+			}
+		}
+
+		$licenses = apply_filters( 'premia_order_licenses', $licenses, $order );
+
+		if ( ! empty( $licenses ) ) {
+			echo '<table>';
+			echo '<tr><th>' . __( 'Name', 'premia' ) . '</th><th>' . __( 'License', 'premia' ) . '</th></tr>';
+			foreach ( $licenses as $license ) {
+				echo '<tr><td><strong>' . $license['name'] . '</strong></td><td><code>' . $license['license_key'] . '</code></td></tr>';
+			}
+			echo '</table>';
+		} else {
+			echo '<p>' . esc_html__( 'Licenses will show here after your purchase is confirmed.', 'premia' ) . '</p>';
 		}
 	}
 
