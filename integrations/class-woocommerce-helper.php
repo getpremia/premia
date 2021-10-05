@@ -22,6 +22,11 @@ class Woocommerce_Helper {
 		add_action( 'plugins_loaded', array( $this, 'start' ), 10 );
 	}
 
+	/**
+	 * Checks if Woocommerce is active.
+	 *
+	 * @return bool activate state.
+	 */
 	public function is_woocommerce_active() {
 		return \class_exists( 'WooCommerce' );
 	}

@@ -69,7 +69,7 @@ class Admin_Options {
 				Debug::log( 'Result body: ' . $url, wp_remote_retrieve_body( $activate ) );
 
 				if ( $action === 'deactivate' ) {
-					   $license = '';
+					$license = '';
 				}
 
 				if ( $status !== 200 && $action === 'activate' ) {

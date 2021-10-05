@@ -9,8 +9,7 @@
     <rule ref="WordPress"/>
 
     <file>.</file>
-    <exclude-pattern>*/app/www/vendor/*</exclude-pattern>
-    <exclude-pattern>*/app/frontend/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
 
     <config name="minimum_supported_wp_version" value="4.7"/>
 
