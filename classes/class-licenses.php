@@ -168,17 +168,25 @@ class Licenses {
 	}
 
 	public static function get_license_by_license_key( $license_key ) {
-		return apply_filters( 'premia_get_license_by_license_key', get_page_by_title( $license_key, OBJECT, 'prem_license' ), $license_key );
+		$post = get_page_by_title( $license_key, OBJECT, 'prem_license' );
+		return apply_filters( 'premia_get_license_by_license_key', $post, $license_key );
 	}
 
 	public static function get_linked_post_by_license_key( $license_key ) {
-		$post = get_license_by_license_key( $license_key );
-		return get_post_meta( $post->ID, '_premia_linked_post_id', true );
+		$post_id = false;
+		$post    = self::get_license_by_license_key( $license_key );
+		if ( ! is_wp_error( $post ) && is_a( $post, 'WP_Post' ) && $post->post_status === 'publish' ) {
+			$post_id = get_post_meta( $post->ID, '_premia_linked_post_id', true );
+		}
+		return $post_id;
 	}
 
 	public static function activate( $license_info ) {
-		self::add_site( $license_info['license_key'], $license_info['site_url'] );
-		return apply_filters( 'premia_activate_license', true, $license_info );
+		$validate = self::validate_license_key( $license_info );
+		if ( $validate ) {
+			self::add_site( $license_info['license_key'], $license_info['site_url'] );
+		}
+		return apply_filters( 'premia_activate_license', $validate, $license_info );
 	}
 
 	public static function deactivate( $license_info ) {
@@ -191,8 +199,31 @@ class Licenses {
 		return apply_filters( 'premia_get_license', $license, $license_info );
 	}
 
-	public static function validate_license( $license_info ) {
+	public static function validate_license_key( $license_info ) {
 		$validate = false;
+
+		if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
+			$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
+			if ( is_int( $linked_post ) && 0 !== $linked_post ) {
+				$validate = true;
+			}
+		}
+
+		Debug::log( 'Validation result: ', $validate );
+
+		return apply_filters( 'premia_validate_license', $validate, $license_info );
+	}
+
+	public static function validate_site( $license_info ) {
+		$validate = false;
+
+		if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
+			$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
+			Debug::log( 'Linked post:', $linked_post );
+			if ( is_int( $linked_post ) ) {
+				$license_info['post_id'] = $linked_post;
+			}
+		}
 
 		// Bail early as there's no validation to do.
 		if ( isset( $license_info['post_id'] ) && ! empty( $license_info['post_id'] ) ) {
