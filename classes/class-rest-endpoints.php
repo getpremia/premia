@@ -56,6 +56,15 @@ class REST_Endpoints {
 					'permission_callback' => '__return_true',
 				)
 			);
+			register_rest_route(
+				'premia/v1',
+				$endpoint['name'],
+				array(
+					'methods'             => array( 'GET', 'POST' ),
+					'callback'            => $endpoint['callback'],
+					'permission_callback' => '__return_true',
+				)
+			);
 		}
 	}
 
@@ -293,7 +302,7 @@ class REST_Endpoints {
 	 * @return boolean true or false.
 	 */
 	public function validate( $license_info ) {
-		return Licenses::validate_license( $license_info );
+		return Licenses::validate_site( $license_info );
 	}
 
 	/**
