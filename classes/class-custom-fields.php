@@ -39,6 +39,13 @@ class Custom_Fields {
 					'type'    => 'select',
 					'visible' => true,
 				),
+				array(
+					'name'    => 'installations',
+					'label'   => __( 'Active sites', 'premia' ),
+					'desc'    => __( 'Show enabled sites for this license', 'premia' ),
+					'type'    => 'link_list',
+					'visible' => true,
+				),
 			)
 		);
 
@@ -125,6 +132,17 @@ class Custom_Fields {
 							if ( ! is_wp_error( $post ) ) {
 								echo '<a class="button button-secondary" href="' . get_edit_post_link( $value ) . '">' . $post->post_title . '</a>';
 							}
+						}
+						break;
+					case 'link_list':
+						echo '<label for="' . $field['name'] . '">' . $field['label'] . '</label><br/>';
+						$value = get_post_meta( $post->ID, $field['name'], true );
+						if ( is_array( $value ) && ! empty( $value ) ) {
+							echo '<ul>';
+							foreach ( $value as $site ) {
+								echo '<li><a href="' . esc_html( $site ) . '">' . esc_html( $site ) . '</a></li>';
+							}
+							echo '</ul>';
 						}
 						break;
 					default:
