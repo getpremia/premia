@@ -1,4 +1,11 @@
 <?php
+/**
+ * Woocommerce License Manager Helper
+ *
+ * @package Premia
+ * @since 1.0
+ */
+
 namespace Premia;
 
 /**
@@ -8,18 +15,32 @@ namespace Premia;
  */
 class Woocommerce_License_Manager_Helper {
 
+	/**
+	 * Consructor function.
+	 */
 	public function __construct() {
 		$this->init();
 	}
 
+	/**
+	 * Initiatior.
+	 */
 	public function init() {
 		add_action( 'plugins_loaded', array( $this, 'start' ), 5 );
 	}
 
+	/**
+	 * Is license manager active.
+	 *
+	 * @return bool The current state.
+	 */
 	public static function is_license_manager_active() {
 		return \class_exists( 'LicenseManagerForWooCommerce\Main' );
 	}
 
+	/**
+	 * Starter for License Manager Helper.
+	 */
 	public function start() {
 		if ( $this->is_license_manager_active() ) {
 			add_action( 'woocommerce_account_view-license-keys_endpoint', array( $this, 'manage_installs' ), 20 );
@@ -35,16 +56,36 @@ class Woocommerce_License_Manager_Helper {
 		}
 	}
 
+	/**
+	 * Is the license active?
+	 *
+	 * @param bool   $status Current state.
+	 * @param string $license_key  The license key.
+	 * @return bool Current state.
+	 */
 	public function is_license_active( $status, $license_key ) {
 		$license = $this->get_license( $license_key );
 		// @todo
 		return $status;
 	}
 
+	/**
+	 * Get the license object with the license key.
+	 *
+	 * @param object $post The Post object.
+	 * @param string $license_key The license key.
+	 * @return object The post object.
+	 */
 	public function get_license_by_license_key( $post, $license_key ) {
 		return $this->get_license( $license_key );
 	}
 
+	/**
+	 * Add Woocommerce downloads
+	 *
+	 * @param array $downloads The customized array.
+	 * @return array The customized downloads array.
+	 */
 	public function add_woocommerce_downloads( $downloads ) {
 
 		$downloads = array();
@@ -90,8 +131,15 @@ class Woocommerce_License_Manager_Helper {
 		return $downloads;
 	}
 
+	/**
+	 * Show downloads in order.
+	 *
+	 * @param array  $downloads List of downloads.
+	 * @param object $order The order object.
+	 * @return array Customised list of downloads.
+	 */
 	public function add_order_downloads( $downloads, $order ) {
-		
+
 		$downloads = array();
 
 		$user_licenses = apply_filters( 'lmfwc_get_customer_license_keys', $order );
@@ -120,11 +168,18 @@ class Woocommerce_License_Manager_Helper {
 		return $downloads;
 	}
 
+	/**
+	 * Validate license
+	 *
+	 * @param bool  $validate The current state.
+	 * @param array $license_info The license information.
+	 * @return bool The new state.
+	 */
 	public function validate_license( $validate, $license_info ) {
 		$validate = false;
 		$license  = lmfwc_get_license( $license_info['license_key'] );
 
-		if ( $license !== false ) {
+		if ( false !== $license ) {
 			$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );
 			if ( in_array( $license_info['site_url'], $installs, true ) || is_user_logged_in() ) {
 				$validate = true;
@@ -139,22 +194,28 @@ class Woocommerce_License_Manager_Helper {
 	}
 
 	/**
+	 * Manage installs
 	 * This section is shown below the license manager output in Woocommerce -> My account
 	 */
 	public function manage_installs() {
-		if ( isset( $_GET['site_url'] ) && isset( $_GET['action'] ) && isset( $_GET['license_key'] ) ) {
-			if ( ! empty( $_GET['site_url'] ) && ! empty( $_GET['action'] ) && ! empty( $_GET['license_key'] ) ) {
-				$action      = sanitize_text_field( $_GET['action'] );
-				$site_url    = sanitize_text_field( $_GET['site_url'] );
-				$license_key = sanitize_text_field( $_GET['license_key'] );
 
-				if ( $action === 'deactivate' ) {
-					$deactivate = self::deactivate(
-						array(
-							'license_key' => $license_key,
-							'site_url'    => $site_url,
-						)
-					);
+		$nonce = sanitize_key( $_GET['_wpnonce'] );
+		if ( wp_verify_nonce( $nonce ) ) {
+
+			if ( isset( $_GET['site_url'] ) && isset( $_GET['action'] ) && isset( $_GET['license_key'] ) ) {
+				if ( ! empty( $_GET['site_url'] ) && ! empty( $_GET['action'] ) && ! empty( $_GET['license_key'] ) ) {
+					$action      = sanitize_text_field( $_GET['action'] );
+					$site_url    = sanitize_text_field( $_GET['site_url'] );
+					$license_key = sanitize_text_field( $_GET['license_key'] );
+
+					if ( $action === 'deactivate' ) {
+						$deactivate = self::deactivate(
+							array(
+								'license_key' => $license_key,
+								'site_url'    => $site_url,
+							)
+						);
+					}
 				}
 			}
 		}
