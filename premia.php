@@ -20,39 +20,25 @@
 
 namespace Premia;
 
+require plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 /**
- * WooCommerce License Updater
+ * Start the plugin
  *
- * @since 1.0
+ * @since    1.5.0
  */
-class Premia {
-
-	/**
-	 * Constructor function
-	 */
-	public function __construct() {
-		$this->init();
-	}
-
-	/**
-	 * Add hooks and filters
-	 */
-	public function init() {
-		new Github();
-		new REST_Endpoints();
-		new Custom_Fields();
-		new Shortcodes();
-		new Debug();
-		new Woocommerce_Helper();
-		new Licenses();
-		new Woocommerce_License_Manager_Helper();
-		new Compressor();
-		new Updater( 'premia', __FILE__ );
-		new Admin_Options();
-	}
-
+function run_premia() {
+	new Github();
+	new REST_Endpoints();
+	new Custom_Fields();
+	new Shortcodes();
+	new Debug();
+	new Woocommerce_Helper();
+	new Licenses();
+	new Woocommerce_License_Manager_Helper();
+	new Compressor();
+	new Updater( 'premia', __FILE__ );
+	new Admin_Options();
+	new Admin_Notices();
 }
 
-require plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
-
-$premia = new Premia();
+run_premia();
