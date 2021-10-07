@@ -37,7 +37,7 @@ class Github {
 
 		$request = wp_remote_get( $url, $args );
 
-		Debug::log( 'Answer: ', wp_remote_retrieve_body( $request ), 2 );
+		Debug::log( 'Answer: ', wp_remote_retrieve_body( $request ), 3 );
 
 		return $request;
 	}
@@ -55,22 +55,19 @@ class Github {
 	/**
 	 * Download a ZIP file
 	 */
-	public static function download_asset( $github_data, $path, $base_dir, $plugin_file ) {
+	public static function download_asset( $github_data, $path, $target ) {
+		Debug::log( 'Downloading asset from: ', $path, 2 );
 		$zip = self::request( $github_data, $path, array(), 'zip' );
 
 		if ( is_wp_error( $zip ) ) {
-			Debug::log( 'Zip is not valid?', $zip );
+			Debug::log( 'Error: invalid response.', $zip );
 			return new \WP_REST_Response( array( 'error' => 'Zip is invalid.' ), 400 );
 		}
 
-		$parts = explode( 'filename=', $zip['headers']['content-disposition'] );
-		if ( is_array( $parts ) && isset( $parts[1] ) ) {
-			$zip_name = $parts[1];
-		} else {
-			$zip_name = $plugin_file;
-		}
+		$parts    = explode( 'filename=', $zip['headers']['content-disposition'] );
+		$zip_name = $parts[1];
 
-		$file_path = $base_dir . 'tmp/zip/' . $zip_name;
+		$file_path = $target . $zip_name;
 
 		// Save the zip file.
 		file_put_contents( $file_path, $zip['body'] );
