@@ -35,7 +35,6 @@ function run_premia() {
 	new Woocommerce_Helper();
 	new Licenses();
 	new Woocommerce_License_Manager_Helper();
-	new Compressor();
 	new Updater( 'premia', __FILE__ );
 	new Admin_Options();
 	new Admin_Notices();

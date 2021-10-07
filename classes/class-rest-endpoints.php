@@ -185,13 +185,8 @@ class REST_Endpoints {
 			// We don't have the latest release, get it.
 
 			// Get the ZIP.
-			$file_path    = Compressor::download_zip( $github_data, $zip_url, $base_dir, $plugin_file );
+			$file_path    = Github::download_asset( $github_data, $zip_url, $base_dir, $plugin_file );
 			$archive_path = $base_dir . 'tmp/zip/' . $version . '/' . $plugin_file;
-
-			// Re-pack the ZIP as the WordPress update systems needs a directory with a subdirector where the plugin lives.
-			if ( ! is_file( $archive_path ) || ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ) {
-				$archive_path = Compressor::generate_zip( $base_dir, $version, $archive_path, $post->post_name, $file_path, $type );
-			}
 
 			$new_path = $base_dir . $directories['current_release'] . basename( $archive_path );
 
@@ -200,9 +195,6 @@ class REST_Endpoints {
 			$archive_path = $new_path;
 
 			update_post_meta( $post->ID, '_premia_latest_release_path', $new_path );
-
-			// Delete files
-			Compressor::clean( $base_dir . 'tmp' );
 		} else {
 			// Throwback the version we already have prepared.
 			$archive_path = $latest_release_path;
