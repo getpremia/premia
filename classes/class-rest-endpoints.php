@@ -162,11 +162,7 @@ class REST_Endpoints {
 		$body    = json_decode( wp_remote_retrieve_body( $result ) );
 		$version = $body->tag_name;
 
-		// @todo - Check for latest release every 3 hours.
-		// @todo - Allow manual check for latest release.
-		// @todo - Allow customizing plugin file path.
-
-		Debug::log( 'Github response: ', $body, 2 );
+		Debug::log( 'Github response: ', $body, 3 );
 
 		$base_dir    = apply_filters( 'premia_plugin_assets_download_path', plugin_dir_path( dirname( __FILE__ ) ) );
 		$directories = File_Directory::prepare_directories( $base_dir, $post->post_name, $version );
@@ -175,41 +171,58 @@ class REST_Endpoints {
 		if ( is_array( $body->assets ) && ! empty( $body->assets ) ) {
 			$release = reset( $body->assets );
 			$zip_url = str_replace( $github_data['api_url'], '', $release->url );
-			$type    = 'asset';
 		} else {
-			$zip_url = str_replace( $github_data['api_url'], '', $body->zipball_url );
-			$type    = 'source';
+			return new \WP_REST_Response( array( 'error' => 'No assets found.' ), 400 );
 		}
 
-		if ( $latest_release !== $version || defined( 'PREMIA_DEBUG' ) ) {
-			// We don't have the latest release, get it.
+		$redownload = false;
+
+		if ( $latest_release !== $version ) {
+			$redownload = true;
+			Debug::log(
+				'Updated release detected.',
+				array(
+					'cached_release' => $latest_release,
+					'new_release'    => $version,
+				),
+				2
+			);
+		}
+
+		if ( empty( $latest_release_path ) || ! file_exists( $latest_release_path ) ) {
+			$redownload = true;
+			Debug::log( 'Unknown cached release.', $latest_release, 2 );
+		}
+
+		// if ( defined( 'PREMIA_DEBUG' ) ) {
+		// $redownload = true;
+		// }
+
+		if ( $redownload ) {
+			Debug::log( 'Downloading latest release.', false, 2 );
 
 			// Get the ZIP.
-			$file_path    = Github::download_asset( $github_data, $zip_url, $base_dir, $plugin_file );
-			$archive_path = $base_dir . 'tmp/zip/' . $version . '/' . $plugin_file;
+			$file_path = Github::download_asset( $github_data, $zip_url, $base_dir . $directories['current_release'] );
 
-			$new_path = $base_dir . $directories['current_release'] . basename( $archive_path );
-
-			rename( $archive_path, $new_path );
-
-			$archive_path = $new_path;
-
-			update_post_meta( $post->ID, '_premia_latest_release_path', $new_path );
+			update_post_meta( $post->ID, '_premia_latest_release_path', $file_path );
+			update_post_meta( $post->ID, '_premia_latest_release_version', $version );
+			$latest_release_path = $file_path;
 		} else {
-			// Throwback the version we already have prepared.
-			$archive_path = $latest_release_path;
+			Debug::log( 'Using cached file.', $latest_release_path, 2 );
 		}
 
-		File_Directory::is_protected_file( $directories['current_release'] . basename( $archive_path ) );
+		File_Directory::is_protected_file( $latest_release_path );
 
 		// Set the correct headers.
-		if ( file_exists( $archive_path ) ) {
-			header( 'content-disposition: attachment; filename=' . $plugin_file );
+		if ( file_exists( $latest_release_path ) ) {
+			header( 'content-disposition: attachment; filename=' . basename( $latest_release_path ) );
 		}
+
+		Debug::log( 'Premia will serve this file: ', $latest_release_path, 2 );
 
 		// Bring back the ZIP!
 		//phpcs:ignore
-		echo file_get_contents($archive_path);
+		echo file_get_contents( $latest_release_path );
 
 		exit();
 	}
