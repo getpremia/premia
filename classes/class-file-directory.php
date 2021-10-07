@@ -14,26 +14,6 @@ class File_Directory {
 		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
 		$fs = new \WP_Filesystem_Direct( false );
 
-		if ( ! is_dir( $base_dir . 'tmp' ) ) {
-			$fs->mkdir( $base_dir . 'tmp/' );
-		}
-
-		if ( ! is_dir( $base_dir . 'tmp/zip' ) ) {
-			$fs->mkdir( $base_dir . 'tmp/zip/' );
-		}
-
-		if ( ! is_dir( $base_dir . 'tmp/unpacked' ) ) {
-			$fs->mkdir( $base_dir . 'tmp/unpacked/' );
-		}
-
-		if ( ! is_dir( $base_dir . 'tmp/unpacked/' . $version ) ) {
-			$fs->mkdir( $base_dir . 'tmp/unpacked/' . $version );
-		}
-
-		if ( ! is_dir( $base_dir . 'tmp/zip/' . $version ) ) {
-			$fs->mkdir( $base_dir . 'tmp/zip/' . $version );
-		}
-
 		if ( ! is_dir( $base_dir . 'releases' ) ) {
 			$fs->mkdir( $base_dir . 'releases/' );
 		}
@@ -46,18 +26,12 @@ class File_Directory {
 			$fs->mkdir( $base_dir . 'releases/' . $name . '/' . $version );
 		}
 
-		if ( ! file_exists( $base_dir . 'tmp/.htaccess' ) ) {
-			// @todo Create .htaccess
-			self::create_htaccess( $base_dir . 'tmp/.htaccess' );
-		}
-
 		if ( ! file_exists( $base_dir . 'releases/.htaccess' ) ) {
 			// @todo Create .htaccess
 			self::create_htaccess( $base_dir . 'releases/.htaccess' );
 		}
 
 		return array(
-			'tmp'              => 'tmp/',
 			'releases'         => 'releases/',
 			'current_releases' => 'releases/' . $name . '/',
 			'current_release'  => 'releases/' . $name . '/' . $version . '/',
@@ -88,7 +62,8 @@ class File_Directory {
 				$file,
 				$url,
 				$status,
-			)
+			),
+			2
 		);
 		if ( 200 !== $status ) {
 			return true;
