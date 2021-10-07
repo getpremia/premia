@@ -1,5 +1,15 @@
 <?php
+/**
+ * WooCommerce Helper
+ *
+ * @package Premia
+ *
+ * @since 1.0
+ */
+
 namespace Premia;
+
+use Exception;
 
 /**
  * Woocommerce class
@@ -31,6 +41,11 @@ class Woocommerce_Helper {
 		return \class_exists( 'WooCommerce' );
 	}
 
+	/**
+	 * Starts when Woocommece is active.
+	 *
+	 * @return void
+	 */
 	public function start() {
 		if ( $this->is_woocommerce_active() ) {
 			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'add_downloads' ) );
@@ -48,12 +63,18 @@ class Woocommerce_Helper {
 			add_action( 'woocommerce_order_status_completed', array( $this, 'maybe_create_licences' ) );
 			add_action( 'woocommerce_order_status_cancelled', array( $this, 'maybe_deactivate_licences' ) );
 			add_action( 'woocommerce_order_refunded', array( $this, 'maybe_deactivate_licences' ) );
-			add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( $this, 'format_license_meta' ), 10, 2 );
+			add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( $this, 'format_license_meta' ), 10 );
 			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'add_licenses' ) );
 		}
 	}
 
-	public function format_license_meta( $formatted_meta, $item ) {
+	/**
+	 * Filter the formatted meta data.
+	 *
+	 * @param array $formatted_meta The unformatted metadata.
+	 * @return array The formatted metadata.
+	 */
+	public function format_license_meta( $formatted_meta ) {
 		foreach ( $formatted_meta as &$meta ) {
 			$meta->display_key   = __( 'License', 'premia' );
 			$meta->display_value = '<a href="' . get_edit_post_link( $meta->value ) . '">' . get_the_title( $meta->value ) . '</a>';
@@ -61,13 +82,25 @@ class Woocommerce_Helper {
 		return $formatted_meta;
 	}
 
+	/**
+	 * Add product support for Premia.
+	 *
+	 * @param array $post_types Supported Post Types.
+	 * @return array customized supported post types.
+	 */
 	public function add_product_support( $post_types ) {
 		$post_types[] = 'product';
 		return $post_types;
 	}
 
+	/**
+	 * Add Woocommerce fields.
+	 *
+	 * @param array $fields The exisiting fields.
+	 * @return array The new fields.
+	 */
 	public function add_wc_fields( $fields ) {
-		if ( get_post_type() === 'product' ) {
+		if ( 'product' === get_post_type() ) {
 			$fields = array_merge(
 				array(
 					array(
@@ -90,13 +123,20 @@ class Woocommerce_Helper {
 	 * @param int $post_id The Product ID.
 	 */
 	public function save_wc_product_data_panel( $post_id ) {
+
+		if ( ! ( isset( $_POST['woocommerce_meta_nonce'], $_POST['acme_text_id'] ) || wp_verify_nonce( sanitize_key( $_POST['woocommerce_meta_nonce'] ), 'woocommerce_save_data' ) ) ) {
+			return false;
+		}
+
 		$product = wc_get_product( $post_id );
 
 		$fields = Custom_Fields::get_fields();
 
 		foreach ( $fields as $field ) {
-			$value = apply_filters( 'premia_update_field', sanitize_text_field( $_POST[ $field['name'] ] ), $field, $post_id );
-			$product->update_meta_data( $field['name'], $value );
+			if ( isset( $_POST[ $field['name'] ] ) ) {
+				$value = apply_filters( 'premia_update_field', sanitize_text_field( wp_unslash( $_POST[ $field['name'] ] ) ), $field, $post_id );
+				$product->update_meta_data( $field['name'], $value );
+			}
 		}
 
 		$product->save();
@@ -230,8 +270,8 @@ class Woocommerce_Helper {
 			$license_id = $item->get_meta( '_premia_linked_license' );
 			if ( ! empty( $license_id ) ) {
 				$license = get_post( $license_id );
-				if ( $license->post_status === 'publish' ) {
-					if ( is_a( $license, 'WP_Post' ) && $license->post_status === 'publish' ) {
+				if ( 'publish' === $license->post_status ) {
+					if ( is_a( $license, 'WP_Post' ) && 'publish' === $license->post_status ) {
 						$post_id      = get_post_meta( $license_id, '_premia_linked_post_id', true );
 						$post         = get_post( $post_id );
 						$license_info = array(
@@ -254,13 +294,18 @@ class Woocommerce_Helper {
 
 		$downloads = apply_filters( 'premia_order_downloads', $downloads, $order );
 
-		if ( ! empty( $downloads ) ) {
-			echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '</p>';
-			foreach ( $downloads as $download ) {
-				echo '<p><a class="button" href="' . esc_html( $download['link'] ) . '">Download ' . esc_html( $download['name'] ) . '</a></p>';
+		if ( is_user_logged_in() ) {
+
+			if ( ! empty( $downloads ) ) {
+				echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '</p>';
+				foreach ( $downloads as $download ) {
+					echo '<p><a class="button" href="' . esc_html( $download['link'] ) . '">Download ' . esc_html( $download['name'] ) . '</a></p>';
+				}
+			} else {
+				echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '</p>';
 			}
 		} else {
-			echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '</p>';
+			echo '<p>' . esc_html__( 'Login to access your downloads.', 'premia' ) . '</p>';
 		}
 	}
 
@@ -278,8 +323,8 @@ class Woocommerce_Helper {
 			$license_id = $item->get_meta( '_premia_linked_license' );
 			if ( ! empty( $license_id ) ) {
 				$license = get_post( $license_id );
-				if ( $license->post_status === 'publish' ) {
-					if ( is_a( $license, 'WP_Post' ) && $license->post_status === 'publish' ) {
+				if ( 'publish' === $license->post_status ) {
+					if ( is_a( $license, 'WP_Post' ) && 'publish' === $license->post_status ) {
 						$post_id    = get_post_meta( $license_id, '_premia_linked_post_id', true );
 						$post       = get_post( $post_id );
 						$licenses[] = array(
@@ -296,9 +341,9 @@ class Woocommerce_Helper {
 
 		if ( ! empty( $licenses ) ) {
 			echo '<table>';
-			echo '<tr><th>' . __( 'Name', 'premia' ) . '</th><th>' . __( 'License', 'premia' ) . '</th></tr>';
+			echo '<tr><th>' . esc_html__( 'Name', 'premia' ) . '</th><th>' . esc_html__( 'License', 'premia' ) . '</th></tr>';
 			foreach ( $licenses as $license ) {
-				echo '<tr><td><strong>' . $license['name'] . '</strong></td><td><code>' . $license['license_key'] . '</code></td></tr>';
+				echo '<tr><td><strong>' . esc_html( $license['name'] ) . '</strong></td><td><code>' . esc_html( $license['license_key'] ) . '</code></td></tr>';
 			}
 			echo '</table>';
 		} else {
@@ -306,6 +351,12 @@ class Woocommerce_Helper {
 		}
 	}
 
+	/**
+	 * Add linker order field.
+	 *
+	 * @param array $fields Existing fields.
+	 * @return array New fields.
+	 */
 	public function add_linked_order_field( $fields ) {
 		$fields[] = array(
 			'name'    => '_premia_linked_order_id',
@@ -316,6 +367,12 @@ class Woocommerce_Helper {
 		return $fields;
 	}
 
+	/**
+	 * Maybe create a license.
+	 *
+	 * @param int $order_id The Order ID.
+	 * @return void
+	 */
 	public function maybe_create_licences( $order_id ) {
 		Debug::log( 'Maybe create license: ', $order_id );
 		$order           = wc_get_order( $order_id );
@@ -326,7 +383,7 @@ class Woocommerce_Helper {
 			foreach ( $order->get_items() as $item_id => $item ) {
 				$product_id      = $item->get_product_id();
 				$license_enabled = get_post_meta( $product_id, '_updater_enable_license', true );
-				if ( $license_enabled === 'yes' ) {
+				if ( 'yes' === $license_enabled ) {
 					$license_id = Licenses::create_license( $product_id, $order->get_user_id() );
 					update_post_meta( $license_id, '_premia_linked_order_id', $order_id );
 					wc_update_order_item_meta( $item_id, '_premia_linked_license', $license_id );
@@ -337,6 +394,12 @@ class Woocommerce_Helper {
 		}
 	}
 
+	/**
+	 * Maybe deactivate license.
+	 *
+	 * @param int $order_id The Order ID.
+	 * @return void
+	 */
 	public function maybe_deactivate_licences( $order_id ) {
 		Debug::log( 'Maybe deactivate license: ', $order_id );
 		$order = wc_get_order( $order_id );
