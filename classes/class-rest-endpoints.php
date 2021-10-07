@@ -211,7 +211,7 @@ class REST_Endpoints {
 			Debug::log( 'Using cached file.', $latest_release_path, 2 );
 		}
 
-		File_Directory::is_protected_file( $latest_release_path );
+		File_Directory::is_protected_file( $directories['current_release'] . basename( $file_path ) );
 
 		// Set the correct headers.
 		if ( file_exists( $latest_release_path ) ) {
