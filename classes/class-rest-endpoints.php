@@ -128,6 +128,10 @@ class REST_Endpoints {
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
 		}
 
+		// Latest release information.
+		$latest_release      = get_post_meta( $post->ID, '_premia_latest_release_version', true );
+		$latest_release_path = get_post_meta( $post->ID, '_premia_latest_release_path', true );
+
 		// Build the plugin file name from the slug.
 		$plugin_file = $post->post_name . '.zip';
 
@@ -158,10 +162,14 @@ class REST_Endpoints {
 		$body    = json_decode( wp_remote_retrieve_body( $result ) );
 		$version = $body->tag_name;
 
+		// @todo - Check for latest release every 3 hours.
+		// @todo - Allow manual check for latest release.
+		// @todo - Allow customizing plugin file path.
+
 		Debug::log( 'Github response: ', $body, 2 );
 
-		$base_dir = plugin_dir_path( dirname( __FILE__ ) );
-		Compressor::prepare_directories( $base_dir, $version );
+		$base_dir    = apply_filters( 'premia_plugin_assets_download_path', plugin_dir_path( dirname( __FILE__ ) ) );
+		$directories = File_Directory::prepare_directories( $base_dir, $post->post_name, $version );
 
 		// Set the download url.
 		if ( is_array( $body->assets ) && ! empty( $body->assets ) ) {
@@ -173,17 +181,34 @@ class REST_Endpoints {
 			$type    = 'source';
 		}
 
-		// Get the ZIP.
-		$file_path = Compressor::download_zip( $github_data, $zip_url, $base_dir, $plugin_file );
+		if ( $latest_release !== $version || defined( 'PREMIA_DEBUG' ) ) {
+			// We don't have the latest release, get it.
 
-		$archive_path = $base_dir . 'tmp/zip/' . $version . '/' . $plugin_file;
+			// Get the ZIP.
+			$file_path    = Compressor::download_zip( $github_data, $zip_url, $base_dir, $plugin_file );
+			$archive_path = $base_dir . 'tmp/zip/' . $version . '/' . $plugin_file;
 
-		// If the ZIP does not exist, generate it.
-		// @todo Add caching: Maybe check the modified time of the file, if older then (plugin settings option) then..
-		// @todo use the file name of the github repo, not from WordPress post/product..
-		if ( ! is_file( $archive_path ) || ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ) {
-			$archive_path = Compressor::generate_zip( $base_dir, $version, $archive_path, $post->post_name, $file_path, $type );
+			// Re-pack the ZIP as the WordPress update systems needs a directory with a subdirector where the plugin lives.
+			if ( ! is_file( $archive_path ) || ( defined( 'WP_DEBUG' ) && true === WP_DEBUG ) ) {
+				$archive_path = Compressor::generate_zip( $base_dir, $version, $archive_path, $post->post_name, $file_path, $type );
+			}
+
+			$new_path = $base_dir . $directories['current_release'] . basename( $archive_path );
+
+			rename( $archive_path, $new_path );
+
+			$archive_path = $new_path;
+
+			update_post_meta( $post->ID, '_premia_latest_release_path', $new_path );
+
+			// Delete files
+			Compressor::clean( $base_dir . 'tmp' );
+		} else {
+			// Throwback the version we already have prepared.
+			$archive_path = $latest_release_path;
 		}
+
+		File_Directory::is_protected_file( $directories['current_release'] . basename( $archive_path ) );
 
 		// Set the correct headers.
 		if ( file_exists( $archive_path ) ) {
@@ -193,9 +218,6 @@ class REST_Endpoints {
 		// Bring back the ZIP!
 		//phpcs:ignore
 		echo file_get_contents($archive_path);
-
-		// Delete files
-		Compressor::clean( $base_dir . 'tmp' );
 
 		exit();
 	}
