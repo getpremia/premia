@@ -19,11 +19,19 @@ class Debug {
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			$show = true;
 
-			if ( $priority > 1 ) {
-				$show = false;
-				if ( defined( 'PREMIA_DEBUG' ) && boolval( PREMIA_DEBUG ) === true ) {
-					$show = true;
-				}
+			switch ( $priority ) {
+				case 2:
+					$show = false;
+					if ( defined( 'PREMIA_DEBUG' ) && boolval( PREMIA_DEBUG ) === true ) {
+						$show = true;
+					}
+					break;
+				case 3:
+					$show = false;
+					if ( defined( 'PREMIA_LOG_LEVEL' ) && intval( PREMIA_LOG_LEVEL ) >= 3 ) {
+						$show = true;
+					}
+					break;
 			}
 			if ( $show === true ) {
 				error_log( '--[Premia Log] | ' . $name );
