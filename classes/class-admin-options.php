@@ -39,6 +39,17 @@ class Admin_Options {
 		$option_name     = str_replace( '-', '_', $this->plugin_name ) . '_license_key';
 		$tag_option_name = str_replace( '-', '_', $this->plugin_name ) . '_tag';
 
+		if ( isset( $_GET['action'] ) && 'recheck-permissions' === $_GET['action'] ) {
+			$notices = Admin_Notices::get_notices();
+			foreach ( $notices['notices'] as $key => $notice ) {
+				if ( $notice['type'] === 'permission-issue' ) {
+					if ( File_Directory::is_protected_file( $notice['data']['file'], false ) ) {
+						Admin_Notices::remove_notice( $key );
+					}
+				}
+			}
+		}
+
 		if ( isset( $_POST[ $option_name ] ) ) {
 
 			if ( wp_verify_nonce( $_POST['_wpnonce'] ) ) {
@@ -142,24 +153,11 @@ class Admin_Options {
 			<?php endif; ?>
 		</tbody>
 		</table>
-		<?php
-		// echo '<div class="wrap">';
-		// echo '<p>';
-		// echo '<label for="' . esc_html( $option_name ) . '">' . __( 'License Key', 'premia-demo' ) . '</label><br/>';
-		// echo '<input  name="' . esc_html( $option_name ) . '" ' . ( ( ! empty( $current_license ) && $license_verified === true ) ? 'readonly="readonly"' : '' ) . ' value="' . esc_html( $current_license ) . '" placeholder="' . __( 'Enter License key', 'premia-demo' ) . '" type="text" />';
-		// echo '<input type="hidden" name="action" value="' . ( ( ! empty( $current_license ) && $license_verified === true ) ? 'deactivate' : 'activate' ) . '" />';
-		// echo '<input class="button-primary" type="submit" value="' . ( ( ! empty( $current_license ) && $license_verified === true ) ? 'Deactivate' : 'Activate' ) . '" />';
-		// echo '</p>';
-		// if ( WP_DEBUG ) {
-		// echo '<p>';
-		// echo '<label for="' . esc_html( $tag_option_name ) . '">' . __( 'Tag', 'premia-demo' ) . '</label><br/>';
-		// echo '<input name="' . esc_html( $tag_option_name ) . '" value="' . esc_html( $current_tag ) . '" placeholder="' . __( 'Enter tag or leave empty for latest release', 'premia-demo' ) . '" type="text" />';
-		// echo '<input class="button-primary" type="submit" value="Update" />';
-		// echo '</p>';
-		// }
-		// echo '</div>';
-		?>
 		</form>
+		<div class="wrap">
+			<h1><?php _e( 'Status', 'premia' ); ?></h1>
+			<p><a class="button button-secondary" href="<?php echo admin_url( 'admin.php?page=premia-settings&action=recheck-permissions' ); ?>"><?php _e( 'Re-check permissions', 'premia' ); ?></a></p>
+		</div>
 		</div>
 		<?php
 	}
