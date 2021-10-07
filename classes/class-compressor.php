@@ -14,6 +14,8 @@ class Compressor {
 	 */
 	public static function generate_zip( $base_dir, $version, $archive_path, $plugin_name, $file_path, $type = 'source' ) {
 
+		Debug::log( 'Generate zip file: ', $file_path, 2 );
+
 		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
 		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
 		$fs = new \WP_Filesystem_Direct( false );
@@ -116,33 +118,6 @@ class Compressor {
 		file_put_contents( $file_path, $zip['body'] );
 
 		return $file_path;
-	}
-
-	public static function prepare_directories( $base_dir, $version ) {
-
-		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
-		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
-		$fs = new \WP_Filesystem_Direct( false );
-
-		if ( ! is_dir( $base_dir . 'tmp' ) ) {
-			$fs->mkdir( $base_dir . 'tmp/' );
-		}
-
-		if ( ! is_dir( $base_dir . 'tmp/zip' ) ) {
-			$fs->mkdir( $base_dir . 'tmp/zip' );
-		}
-
-		if ( ! is_dir( $base_dir . 'tmp/unpacked' ) ) {
-			$fs->mkdir( $base_dir . 'tmp/unpacked' );
-		}
-
-		if ( ! is_dir( $base_dir . 'tmp/unpacked/' . $version ) ) {
-			$fs->mkdir( $base_dir . 'tmp/unpacked/' . $version );
-		}
-
-		if ( ! is_dir( $base_dir . 'tmp/zip/' . $version ) ) {
-			$fs->mkdir( $base_dir . 'tmp/zip/' . $version );
-		}
 	}
 
 	public static function clean( $dir ) {
