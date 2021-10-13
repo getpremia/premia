@@ -1,4 +1,11 @@
 <?php
+/**
+ * Rest endpoints
+ *
+ * @package Premia
+ * @since 1.0
+ */
+
 namespace Premia;
 
 /**
@@ -122,7 +129,7 @@ class REST_Endpoints {
 			}
 		}
 
-		if ( is_wp_error( $post ) || $post === null || $post === false ) {
+		if ( is_wp_error( $post ) || null === $post || false === $post ) {
 			Debug::log( 'Error on $post.', $post );
 			Debug::log( 'License info:', $license_info );
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
@@ -191,9 +198,9 @@ class REST_Endpoints {
 			Debug::log( 'Unknown cached release.', $latest_release, 2 );
 		}
 
-		// if ( defined( 'PREMIA_DEBUG' ) ) {
-		// $redownload = true;
-		// }
+		if ( defined( 'PREMIA_DEBUG' ) ) {
+			$redownload = true;
+		}
 
 		if ( $redownload ) {
 			Debug::log( 'Downloading latest release.', false, 2 );
@@ -304,7 +311,7 @@ class REST_Endpoints {
 				$download_url    = add_query_arg( $license_info, get_rest_url() . 'license-updater/v1/download_update' );
 				$do_not_validate = get_post_meta( $post->ID, '_updater_do_not_validate_licenses', true );
 
-				if ( $do_not_validate === 'on' ) {
+				if ( 'on' === $do_not_validate ) {
 					$output['download_url'] = $download_url;
 				} else {
 					$validate = $this->validate( $license_info );
@@ -323,6 +330,8 @@ class REST_Endpoints {
 	/**
 	 * Validate the license by checking if the url is saved as meta for this license key.
 	 *
+	 * @param array $license_info Array of license information.
+	 *
 	 * @return boolean true or false.
 	 */
 	public function validate( $license_info ) {
@@ -332,7 +341,8 @@ class REST_Endpoints {
 	/**
 	 * Rest callback for activation.
 	 *
-	 * @param object $request The request object.
+	 * @param array  $license_info Array of license information.
+	 * @param string $action The intended action.
 	 */
 	public function manage_license( $license_info, $action ) {
 
@@ -366,13 +376,13 @@ class REST_Endpoints {
 			default:
 				Debug::log( 'No action?', array( $action, $license_info ) );
 				return new \WP_REST_Response( array( 'error' => 'No action provided.' ), 400 );
-				break;
 		}
-		return $result;
 	}
 
 	/**
 	 * Validate that this request comes from WordPress
+	 *
+	 * @param array $license_info An array with license information.
 	 */
 	public function validate_request( $license_info ) {
 
@@ -383,16 +393,16 @@ class REST_Endpoints {
 			$do_not_validate = get_post_meta( $license_info['post_id'], '_updater_do_not_validate_licenses', true );
 		}
 
-		if ( ! is_user_logged_in() && $do_not_validate !== 'on' ) {
+		if ( ! is_user_logged_in() && 'on' !== $do_not_validate ) {
 
-			if ( strpos( $_SERVER['HTTP_USER_AGENT'], 'WordPress' ) === false ) {
+			if ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), 'WordPress' ) === false ) {
 				$success = false;
-				Debug::log( 'Can\'t verify if request came from WordPress.', $_SERVER['HTTP_USER_AGENT'] );
+				Debug::log( 'Can\'t verify if request came from WordPress.', sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) );
 			}
 
-			if ( isset( $license_info['site_url'] ) && ! empty( $license_info['site_url'] ) && ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( $_SERVER['HTTP_USER_AGENT'], $license_info['site_url'] ) === false ) ) {
+			if ( isset( $license_info['site_url'] ) && ! empty( $license_info['site_url'] ) && ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $license_info['site_url'] ) === false ) ) {
 				$success = false;
-				Debug::log( 'Can\'t verify if request came from website.', array( $_SERVER['HTTP_USER_AGENT'], $license_info['site_url'] ) );
+				Debug::log( 'Can\'t verify if request came from website.', array( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $license_info['site_url'] ) );
 			}
 		}
 

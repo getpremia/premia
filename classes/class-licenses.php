@@ -1,5 +1,15 @@
 <?php
+/**
+ * Licenses
+ *
+ * @package Premia
+ *
+ * @since 1.0
+ */
+
 namespace Premia;
+
+use Exception;
 
 /**
  * Licenses
@@ -8,14 +18,25 @@ namespace Premia;
  */
 class Licenses {
 
+	/**
+	 * Consturctor.
+	 */
 	public function __construct() {
 		$this->init();
 	}
 
+	/**
+	 * Initializer.
+	 */
 	public function init() {
 		$this->start();
 	}
 
+	/**
+	 * Is necessary?
+	 *
+	 * @return bool Only do this when License Manage for Woocommerce is not active.
+	 */
 	public function is_necessary() {
 		if ( \class_exists( 'LicenseManagerForWooCommerce\Main' ) ) {
 			return false;
@@ -23,6 +44,9 @@ class Licenses {
 		return true;
 	}
 
+	/**
+	 * Start the class.
+	 */
 	public function start() {
 		if ( $this->is_necessary() ) {
 			add_action( 'init', array( $this, 'register_post_types' ) );
@@ -32,25 +56,40 @@ class Licenses {
 		}
 	}
 
+	/**
+	 * Manage columns
+	 *
+	 * @param array $columns Exisiting column.
+	 * @return array The new columns.
+	 */
 	public function manage_columns( $columns ) {
 		$columns['post']     = __( 'Linked post', 'premia' );
 		$columns['customer'] = __( 'Customer', 'premia' );
 		return $columns;
 	}
 
+	/**
+	 * Add column content.
+	 *
+	 * @param string $column The column ID.
+	 * @param int    $post_id The post ID.
+	 */
 	public function columns_content( $column, $post_id ) {
 		switch ( $column ) {
 			case 'post':
 				$linked_id = get_post_meta( $post_id, '_premia_linked_post_id', true );
-				echo '<a href="' . get_edit_post_link( $linked_id ) . '">' . get_the_title( $linked_id ) . '</a>';
+				echo '<a href="' . esc_url( get_edit_post_link( $linked_id ) ) . '">' . esc_html( get_the_title( $linked_id ) ) . '</a>';
 				break;
 			case 'customer':
 				$customer  = get_post_field( 'post_author', $post_id );
 				$user_data = get_userdata( $customer );
-				echo '<a href="' . get_edit_user_link( $customer ) . '">' . $user_data->data->display_name . '</a>';
+				echo '<a href="' . esc_url( get_edit_user_link( $customer ) ) . '">' . esc_html( $user_data->data->display_name ) . '</a>';
 		}
 	}
 
+	/**
+	 * Register the License post type.
+	 */
 	public function register_post_types() {
 		register_post_type(
 			'prem_license',
@@ -74,8 +113,15 @@ class Licenses {
 		);
 	}
 
+	/**
+	 * Generate a License key.
+	 *
+	 * @param array $data Data for insert.
+	 * @param array $post_data The Post data.
+	 * @return mixed
+	 */
 	public function insert_license( $data, $post_data ) {
-		if ( $data['post_type'] === 'prem_license' && $data['post_status'] !== 'auto-draft' ) {
+		if ( 'prem_license' === $data['post_type'] && 'auto-draft' !== $data['post_status'] ) {
 
 			if ( ! is_admin() ) {
 				require_once ABSPATH . 'wp-admin/includes/post.php';
@@ -83,13 +129,19 @@ class Licenses {
 
 			$existing = \post_exists( $data['post_title'] );
 
-			if ( $existing && $existing !== $post_data['ID'] ) {
+			if ( $existing && $existing !== $post_data['ID'] || empty( $data['post_title'] ) ) {
 				$data['post_title'] = $this->generate_license( $post_data['ID'] );
 			}
 		}
 		return $data;
 	}
 
+	/**
+	 * Verified if the key structure is correct.
+	 *
+	 * @param string $license_key The license key.
+	 * @return bool The result.
+	 */
 	public function verify_license_key_structure( $license_key ) {
 		$clean_key     = str_replace( '/[^a-zA-Z0-9]+/', '', $license_key );
 		$remove_dashes = str_replace( '-', '', $clean_key );
@@ -99,6 +151,12 @@ class Licenses {
 		return false;
 	}
 
+	/**
+	 * Generate a license
+	 *
+	 * @param int $post_id The Post ID.
+	 * @return string The license key.
+	 */
 	public static function generate_license( $post_id = false ) {
 		if ( ! is_admin() ) {
 			require_once ABSPATH . 'wp-admin/includes/post.php';
@@ -111,6 +169,13 @@ class Licenses {
 		return strtoupper( $license_key );
 	}
 
+	/**
+	 * Create a license.
+	 *
+	 * @param int $product_id The Product ID.
+	 * @param int $user_id The User ID.
+	 * @return int The licence post ID.
+	 */
 	public static function create_license( $product_id, $user_id ) {
 		Debug::log(
 			'Create license for: ',
@@ -135,10 +200,16 @@ class Licenses {
 		return $license_id;
 	}
 
+	/**
+	 * Add a site to a license.
+	 *
+	 * @param string $license_key The license key.
+	 * @param string $site_url The site URL.
+	 */
 	public static function add_site( $license_key, $site_url ) {
 		Debug::log( 'Add site: ' . $site_url );
 		$post = self::get_license_by_license_key( $license_key );
-		if ( $post !== null ) {
+		if ( null !== $post ) {
 			$sites = get_post_meta( $post->ID, 'installations', true );
 			if ( ! is_array( $sites ) ) {
 				$sites = array();
@@ -150,10 +221,16 @@ class Licenses {
 		}
 	}
 
+	/**
+	 * Remove a site from license.
+	 *
+	 * @param string $license_key The license key.
+	 * @param string $site_url The site URL.
+	 */
 	public static function remove_site( $license_key, $site_url ) {
 		Debug::log( 'Remove site: ' . $site_url );
 		$post = self::get_license_by_license_key( $license_key );
-		if ( $post !== null ) {
+		if ( null !== $post ) {
 			$sites = get_post_meta( $post->ID, 'installations', true );
 			if ( is_array( $sites ) && in_array( $site_url, $sites, true ) ) {
 				$sites = array_filter(
@@ -167,20 +244,38 @@ class Licenses {
 		}
 	}
 
+	/**
+	 * Retrieve a license post by license key.
+	 *
+	 * @param string $license_key The license key.
+	 * @return object The post object.
+	 */
 	public static function get_license_by_license_key( $license_key ) {
 		$post = get_page_by_title( $license_key, OBJECT, 'prem_license' );
 		return apply_filters( 'premia_get_license_by_license_key', $post, $license_key );
 	}
 
+	/**
+	 * Get linked post from license key.
+	 *
+	 * @param string $license_key The license key.
+	 * @return int a post ID.
+	 */
 	public static function get_linked_post_by_license_key( $license_key ) {
 		$post_id = false;
 		$post    = self::get_license_by_license_key( $license_key );
-		if ( ! is_wp_error( $post ) && is_a( $post, 'WP_Post' ) && $post->post_status === 'publish' ) {
+		if ( ! is_wp_error( $post ) && is_a( $post, 'WP_Post' ) && 'publish' === $post->post_status ) {
 			$post_id = get_post_meta( $post->ID, '_premia_linked_post_id', true );
 		}
 		return $post_id;
 	}
 
+	/**
+	 * Activate a license
+	 *
+	 * @param array $license_info An array of license information.
+	 * @return bool The result.
+	 */
 	public static function activate( $license_info ) {
 		$validate = self::validate_license_key( $license_info );
 		if ( $validate ) {
@@ -189,16 +284,34 @@ class Licenses {
 		return apply_filters( 'premia_activate_license', $validate, $license_info );
 	}
 
+	/**
+	 * Deactivate a license
+	 *
+	 * @param array $license_info An array of license information.
+	 * @return bool The result.
+	 */
 	public static function deactivate( $license_info ) {
 		self::remove_site( $license_info['license_key'], $license_info['site_url'] );
 		return apply_filters( 'premia_deactivate_license', true, $license_info );
 	}
 
+	/**
+	 * Get license
+	 *
+	 * @param array $license_info An array of license information.
+	 * @return $object The license object.
+	 */
 	public static function get_license( $license_info ) {
 		$license = self::get_linked_post_by_license_key( $license_info['license_key'] );
 		return apply_filters( 'premia_get_license', $license, $license_info );
 	}
 
+	/**
+	 * Validate a license key
+	 *
+	 * @param array $license_info An array of license information.
+	 * @return bool $validate The result.
+	 */
 	public static function validate_license_key( $license_info ) {
 		$validate = false;
 
@@ -214,6 +327,12 @@ class Licenses {
 		return apply_filters( 'premia_validate_license', $validate, $license_info );
 	}
 
+	/**
+	 * Validate a site
+	 *
+	 * @param array $license_info An array of license information.
+	 * @return bool The result.
+	 */
 	public static function validate_site( $license_info ) {
 		$validate = false;
 
@@ -256,6 +375,12 @@ class Licenses {
 		return apply_filters( 'premia_validate_license', $validate, $license_info );
 	}
 
+	/**
+	 * Is the license active?
+	 *
+	 * @param string $license_key The license key.
+	 * @return bool The result.
+	 */
 	public static function is_license_active( $license_key ) {
 		$license = self::get_license_by_license_key( $license_key );
 
@@ -263,7 +388,7 @@ class Licenses {
 
 			Debug::log( 'post status:', $license->post_status );
 
-			if ( $license->post_status !== 'publish' ) {
+			if ( 'publish' !== $license->post_status ) {
 				$validate = false;
 			}
 		}
@@ -272,6 +397,12 @@ class Licenses {
 
 	}
 
+	/**
+	 * Get installations of license key
+	 *
+	 * @param string $license_key The license key.
+	 * @return array Array of sites.
+	 */
 	public static function get_installations( $license_key ) {
 		$sites   = array();
 		$license = self::get_license_by_license_key( $license_key );

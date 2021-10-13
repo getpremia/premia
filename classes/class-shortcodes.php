@@ -1,22 +1,42 @@
 <?php
+/**
+ * Shortcodes
+ *
+ * @package Premia
+ *
+ * @since 1.0
+ */
+
 namespace Premia;
 
 /**
- * Github API Class
-
+ * Shortcodes
+ *
  * @since 1.0
  */
 class Shortcodes {
 
+	/**
+	 * Constructor.
+	 */
 	public function __construct() {
 		$this->init();
 	}
 
+	/**
+	 * Initalizer.
+	 */
 	public function init() {
 		add_shortcode( 'premia_download_link', array( $this, 'render_link' ) );
 		add_shortcode( 'premia_download_button', array( $this, 'render_button' ) );
 	}
 
+	/**
+	 * Render a download button.
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string A HTML button.
+	 */
 	public function render_button( $atts ) {
 
 		if ( isset( $atts['id'] ) && ! empty( $atts['id'] ) ) {
@@ -26,9 +46,15 @@ class Shortcodes {
 		}
 
 		$download_data = $this->get_download_data( $id );
-		return '<p><a class="button" href="' . esc_html( $download_data['link'] ) . '">Download ' . $download_data['name'] . '</a></p>';
+		return '<p><a class="button" href="' . esc_url( $download_data['link'] ) . '">Download ' . esc_html( $download_data['name'] ) . '</a></p>';
 	}
 
+	/**
+	 * Render a link
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string A HTML link.
+	 */
 	public function render_link( $atts ) {
 
 		if ( isset( $atts['id'] ) && ! empty( $atts['id'] ) ) {
@@ -42,6 +68,13 @@ class Shortcodes {
 		return $data['link'];
 	}
 
+	/**
+	 *
+	 * Get download data
+	 *
+	 * @param int $id The license ID.
+	 * @return array License information.
+	 */
 	public function get_download_data( $id ) {
 		$data = array(
 			'link' => '',
@@ -49,7 +82,7 @@ class Shortcodes {
 		);
 
 		$post = get_post( $id );
-		if ( ! is_wp_error( $post ) && $post !== null ) {
+		if ( ! is_wp_error( $post ) && null !== $post ) {
 			$license_info = array(
 				'site_url' => '',
 				'plugin'   => $post->post_name,

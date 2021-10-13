@@ -31,6 +31,7 @@ class Updater {
 	 * Updater constructor
 	 *
 	 * @param string $name The plugin name.
+	 * @param string $file The plugin file.
 	 */
 	public function __construct( $name, $file ) {
 		$this->plugin_name = $name;

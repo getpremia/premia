@@ -209,11 +209,11 @@ class Woocommerce_License_Manager_Helper {
 
 				if ( isset( $_GET['site_url'] ) && isset( $_GET['action'] ) && isset( $_GET['license_key'] ) ) {
 					if ( ! empty( $_GET['site_url'] ) && ! empty( $_GET['action'] ) && ! empty( $_GET['license_key'] ) ) {
-						$action      = sanitize_text_field( $_GET['action'] );
-						$site_url    = sanitize_text_field( $_GET['site_url'] );
-						$license_key = sanitize_text_field( $_GET['license_key'] );
+						$action      = sanitize_text_field( wp_unslash( $_GET['action'] ) );
+						$site_url    = sanitize_text_field( wp_unslash( $_GET['site_url'] ) );
+						$license_key = sanitize_text_field( wp_unslash( $_GET['license_key'] ) );
 
-						if ( $action === 'deactivate' ) {
+						if ( 'deactivate' === $action ) {
 							$deactivate = self::deactivate(
 								array(
 									'license_key' => $license_key,
@@ -235,7 +235,7 @@ class Woocommerce_License_Manager_Helper {
 				echo '<tr><th>' . esc_html__( 'Site', 'premia' ) . '</th><th>' . esc_html__( 'Action', 'premia' ) . '</th></tr>';
 				foreach ( $installs as $site ) {
 						echo '<tr>';
-						echo '<td>' . $site . '</td>';
+						echo '<td>' . esc_html( $site ) . '</td>';
 						$deactivate_link = get_permalink( get_option( 'woocommerce_myaccount_page_id' ) ) . 'view-license-keys';
 						$deactivate_link = add_query_arg(
 							array(
@@ -244,7 +244,7 @@ class Woocommerce_License_Manager_Helper {
 								'license_key' => $license->getDecryptedLicenseKey(),
 							)
 						);
-						echo '<td><a href="' . esc_url( wp_nonce_url( $deactivate_link ) ) . '" class="button" data-site="' . $site . '">Deactivate</td>';
+						echo '<td><a href="' . esc_url( wp_nonce_url( $deactivate_link ) ) . '" class="button" data-site="' . esc_attr( $site ) . '">Deactivate</td>';
 						echo '</tr>';
 				}
 				echo '</table>';
@@ -272,7 +272,8 @@ class Woocommerce_License_Manager_Helper {
 	/**
 	 * Activate the license
 	 *
-	 * @param array $license_info An array with license information.
+	 * @param string $status The current status.
+	 * @param array  $license_info An array with license information.
 	 */
 	public static function activate( $status, $license_info ) {
 		$license = lmfwc_get_license( $license_info['license_key'] );
@@ -287,14 +288,27 @@ class Woocommerce_License_Manager_Helper {
 		return true;
 	}
 
+	/**
+	 * Get license
+	 *
+	 * @param string $license_key The license key.
+	 * @return mixed The license manager license object.
+	 */
 	public function get_license( $license_key ) {
 		$license = lmfwc_get_license( $license_key );
 		return $license;
 	}
 
+	/**
+	 * Get installations.
+	 *
+	 * @param array  $sites The current list of sites.
+	 * @param string $license_key The license key.
+	 * @return mixed The list of sites from license manager.
+	 */
 	public function get_installations( $sites, $license_key ) {
 		$license = $this->get_license( $license_key );
-		if ( $license !== false ) {
+		if ( false !== $license ) {
 			$sites = lmfwc_get_license_meta( $license->getId(), 'installations', false );
 		}
 		return $sites;

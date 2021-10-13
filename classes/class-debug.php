@@ -1,19 +1,26 @@
 <?php
+/**
+ * Debug
+ *
+ * @package Premia
+ *
+ * @since 0.1
+ */
+
 namespace Premia;
 
 /**
- * Github API Class
-
- * @since 1.0
+ * Debug
+ *
+ * @since 0.1
  */
 class Debug {
 	/**
-	 * Send a request to Github.
+	 * Log
 	 *
-	 * @param string $api_url The endpoint to request to.
-	 * @param string $api_token The token to use.
-	 * @param string $url The path to rewuest to.
-	 * @param array  $args a collection of arguments for wp_remote_get.
+	 * @param string $name A prefix.
+	 * @param mixed  $info Anything that needs be logged.
+	 * @param int    $priority When should it show?.
 	 */
 	public static function log( $name, $info = '', $priority = 1 ) {
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
@@ -33,7 +40,7 @@ class Debug {
 					}
 					break;
 			}
-			if ( $show === true ) {
+			if ( true === $show ) {
 				error_log( '--[Premia Log] | ' . $name );
 				if ( ! empty( $info ) ) {
 					error_log( print_r( $info, true ) );
