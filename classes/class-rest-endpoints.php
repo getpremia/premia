@@ -132,9 +132,6 @@ class REST_Endpoints {
 		$latest_release      = get_post_meta( $post->ID, '_premia_latest_release_version', true );
 		$latest_release_path = get_post_meta( $post->ID, '_premia_latest_release_path', true );
 
-		// Build the plugin file name from the slug.
-		$plugin_file = $post->post_name . '.zip';
-
 		// Validate the license info.
 		$validate = $this->validate( $license_info );
 
