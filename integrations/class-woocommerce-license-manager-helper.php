@@ -65,7 +65,11 @@ class Woocommerce_License_Manager_Helper {
 	 */
 	public function is_license_active( $status, $license_key ) {
 		$license = $this->get_license( $license_key );
-		// @todo
+		if ( false !== $license ) {
+			$status = true;
+		} else {
+			$status = false;
+		}
 		return $status;
 	}
 
@@ -199,22 +203,24 @@ class Woocommerce_License_Manager_Helper {
 	 */
 	public function manage_installs() {
 
-		$nonce = sanitize_key( $_GET['_wpnonce'] );
-		if ( wp_verify_nonce( $nonce ) ) {
+		if ( isset( $_GET['_wpnonce'] ) ) {
+			$nonce = sanitize_key( $_GET['_wpnonce'] );
+			if ( wp_verify_nonce( $nonce ) ) {
 
-			if ( isset( $_GET['site_url'] ) && isset( $_GET['action'] ) && isset( $_GET['license_key'] ) ) {
-				if ( ! empty( $_GET['site_url'] ) && ! empty( $_GET['action'] ) && ! empty( $_GET['license_key'] ) ) {
-					$action      = sanitize_text_field( $_GET['action'] );
-					$site_url    = sanitize_text_field( $_GET['site_url'] );
-					$license_key = sanitize_text_field( $_GET['license_key'] );
+				if ( isset( $_GET['site_url'] ) && isset( $_GET['action'] ) && isset( $_GET['license_key'] ) ) {
+					if ( ! empty( $_GET['site_url'] ) && ! empty( $_GET['action'] ) && ! empty( $_GET['license_key'] ) ) {
+						$action      = sanitize_text_field( $_GET['action'] );
+						$site_url    = sanitize_text_field( $_GET['site_url'] );
+						$license_key = sanitize_text_field( $_GET['license_key'] );
 
-					if ( $action === 'deactivate' ) {
-						$deactivate = self::deactivate(
-							array(
-								'license_key' => $license_key,
-								'site_url'    => $site_url,
-							)
-						);
+						if ( $action === 'deactivate' ) {
+							$deactivate = self::deactivate(
+								array(
+									'license_key' => $license_key,
+									'site_url'    => $site_url,
+								)
+							);
+						}
 					}
 				}
 			}
