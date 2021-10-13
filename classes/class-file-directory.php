@@ -27,8 +27,15 @@ class File_Directory {
 		}
 
 		if ( ! file_exists( $base_dir . 'releases/.htaccess' ) ) {
-			// @todo Create .htaccess
 			self::create_htaccess( $base_dir . 'releases/.htaccess' );
+		}
+
+		if ( ! file_exists( $base_dir . 'releases/' . $name . '/.htaccess' ) ) {
+			self::create_htaccess( $base_dir . 'releases/' . $name . '/.htaccess' );
+		}
+
+		if ( ! file_exists( $base_dir . 'releases/' . $name . '/' . $version . '/.htaccess' ) ) {
+			self::create_htaccess( $base_dir . 'releases/' . $name . '/' . $version . '.htaccess' );
 		}
 
 		return array(
@@ -39,12 +46,8 @@ class File_Directory {
 	}
 
 	public static function create_htaccess( $file ) {
-		$file_content  = 'Options - Indexes' . "\n";
-		$file_content .= 'deny from all' . "\n";
-		$file_content .= '<FilesMatch \'\.(jpg|jpeg|png|gif|mp3|ogg)$\'>' . "\n";
-		$file_content .= 'Order Allow,Deny' . "\n";
-		$file_content .= 'Allow from all' . "\n";
-		$file_content .= '</FilesMatch>' . "\n";
+		$file_content  = 'Order Deny,Allow' . "\n";
+		$file_content .= 'Deny from all' . "\n";
 		file_put_contents( $file, $file_content );
 	}
 
