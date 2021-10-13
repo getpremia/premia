@@ -6,6 +6,10 @@
             "email": "marinus@mklasen.nl"
         }
     ],
+    "require-dev": {
+        "squizlabs/php_codesniffer": "*",
+        "wp-coding-standards/wpcs": "*"
+    },
     "require": {
         "yahnis-elsts/plugin-update-checker": "^4.11"
     },
@@ -13,6 +17,11 @@
         "classmap": [
             "classes",
             "integrations"
+        ]
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "./scripts/setup-hooks.sh"
         ]
     }
 }
