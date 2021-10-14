@@ -395,14 +395,21 @@ class REST_Endpoints {
 
 		if ( ! is_user_logged_in() && 'on' !== $do_not_validate ) {
 
-			if ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), 'WordPress' ) === false ) {
-				$success = false;
-				Debug::log( 'Can\'t verify if request came from WordPress.', sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) );
-			}
+			// Only do checks if HTTP_USER_AGENT is send.
+			if ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) {
+				$origin = sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) );
 
-			if ( isset( $license_info['site_url'] ) && ! empty( $license_info['site_url'] ) && ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $license_info['site_url'] ) === false ) ) {
-				$success = false;
-				Debug::log( 'Can\'t verify if request came from website.', array( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $license_info['site_url'] ) );
+				// is WordPress found in origin?
+				if ( strpos( $origin, 'WordPress' ) === false ) {
+					$success = false;
+					Debug::log( 'Can\'t verify if request came from WordPress.', $origin );
+				}
+
+				// is Site URL found in origin?
+				if ( isset( $license_info['site_url'] ) && ! empty( $license_info['site_url'] ) && strpos( $origin, $license_info['site_url'] ) === false ) {
+					$success = false;
+					Debug::log( 'Can\'t verify if request came from website.', array( $origin, $license_info['site_url'] ) );
+				}
 			}
 		}
 
