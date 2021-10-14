@@ -9,8 +9,6 @@
 
 namespace Premia;
 
-use Exception;
-
 /**
  * Woocommerce class
  *
