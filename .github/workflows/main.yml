@@ -25,7 +25,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer install -o -q
+          composer install -o -q --no-dev
 
       - name: Zip Folder
         run: >
