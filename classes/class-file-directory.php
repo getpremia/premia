@@ -1,4 +1,12 @@
 <?php
+/**
+ * File Directory
+ *
+ * @package Premia
+ *
+ * @since 1.0
+ */
+
 namespace Premia;
 
 /**
@@ -8,11 +16,21 @@ namespace Premia;
  */
 class File_Directory {
 
+	/**
+	 * Prepare directories
+	 *
+	 * @param string $base_dir Path to base dir.
+	 * @param string $name The name of the new directory.
+	 * @param string $version The name of the subdirectory.
+	 * @return array Some new file paths.
+	 */
 	public static function prepare_directories( $base_dir, $name, $version ) {
 
-		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
-		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
-		$fs = new \WP_Filesystem_Direct( false );
+		if ( ! class_exists( 'WP_Filesystem_Direct' ) ) {
+			require ABSPATH . '/wp-admin/includes/class-wp-filesystem-base.php';
+			require ABSPATH . '/wp-admin/includes/class-wp-filesystem-direct.php';
+		}
+		$fs = new \WP_Filesystem_Direct( null );
 
 		if ( ! is_dir( $base_dir . 'releases' ) ) {
 			$fs->mkdir( $base_dir . 'releases/' );
@@ -27,8 +45,15 @@ class File_Directory {
 		}
 
 		if ( ! file_exists( $base_dir . 'releases/.htaccess' ) ) {
-			// @todo Create .htaccess
 			self::create_htaccess( $base_dir . 'releases/.htaccess' );
+		}
+
+		if ( ! file_exists( $base_dir . 'releases/' . $name . '/.htaccess' ) ) {
+			self::create_htaccess( $base_dir . 'releases/' . $name . '/.htaccess' );
+		}
+
+		if ( ! file_exists( $base_dir . 'releases/' . $name . '/' . $version . '/.htaccess' ) ) {
+			self::create_htaccess( $base_dir . 'releases/' . $name . '/' . $version . '/.htaccess' );
 		}
 
 		return array(
@@ -38,16 +63,29 @@ class File_Directory {
 		);
 	}
 
+	/**
+	 * Create htaccess
+	 *
+	 * @param string $file Path to file.
+	 */
 	public static function create_htaccess( $file ) {
-		$file_content  = 'Options - Indexes' . "\n";
-		$file_content .= 'deny from all' . "\n";
-		$file_content .= '<FilesMatch \'\.(jpg|jpeg|png|gif|mp3|ogg)$\'>' . "\n";
-		$file_content .= 'Order Allow,Deny' . "\n";
-		$file_content .= 'Allow from all' . "\n";
-		$file_content .= '</FilesMatch>' . "\n";
-		file_put_contents( $file, $file_content );
+		$file_content  = 'Order Deny,Allow' . "\n";
+		$file_content .= 'Deny from all' . "\n";
+		if ( ! class_exists( 'WP_Filesystem_Direct' ) ) {
+			require ABSPATH . '/wp-admin/includes/class-wp-filesystem-base.php';
+			require ABSPATH . '/wp-admin/includes/class-wp-filesystem-direct.php';
+		}
+		$fs = new \WP_Filesystem_Direct( null );
+		$fs->put_contents( $file, $file_content );
 	}
 
+	/**
+	 * Checks if file is protected.
+	 *
+	 * @param string $file URL to file.
+	 * @param bool   $is_premia_path Is it a premia or custom path?.
+	 * @return bool The result.
+	 */
 	public static function is_protected_file( $file, $is_premia_path = true ) {
 		if ( $is_premia_path ) {
 			$url = plugin_dir_url( dirname( __FILE__ ) . '/' ) . $file;
@@ -72,7 +110,7 @@ class File_Directory {
 		Debug::log( 'Permission issue detected.' );
 
 		Admin_Notices::add_notice(
-			__( 'Premia has detected a permission issue. Make sure your directories are protected.' ),
+			__( 'Premia has detected a permission issue. Make sure your directories are protected.', 'premia' ),
 			'permission-issue',
 			time(),
 			'error',

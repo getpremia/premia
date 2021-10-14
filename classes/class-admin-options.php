@@ -1,26 +1,54 @@
 <?php
+/**
+ * Admin Options
+ *
+ * @package Premia
+ * @since 1.0
+ */
+
 namespace Premia;
 
 /**
  * Admin Options
-
+ *
  * @since 1.0
  */
 class Admin_Options {
 
+	/**
+	 * The API url.
+	 *
+	 * @var string The API url.
+	 */
 	private $api_url = 'https://getpremia.com/wp-json/license-updater/v1/';
 
+	/**
+	 * The plugin name.
+	 *
+	 * @var string The plugin name.
+	 */
 	private $plugin_name = 'premia';
 
+	/**
+	 * Constructor.
+	 */
 	public function __construct() {
 		$this->api_url = apply_filters( 'premia_api_url', $this->api_url );
 		$this->init();
 	}
 
+	/**
+	 * Initializer.
+	 *
+	 * @return void
+	 */
 	public function init() {
 		add_action( 'admin_menu', array( $this, 'add_menu_page' ) );
 	}
 
+	/**
+	 * Add a menu page.
+	 */
 	public function add_menu_page() {
 		add_menu_page(
 			'Premia',
@@ -32,6 +60,9 @@ class Admin_Options {
 		);
 	}
 
+	/**
+	 * The settings page.
+	 */
 	public function settings_page() {
 
 		$license_verified = true;
@@ -42,7 +73,7 @@ class Admin_Options {
 		if ( isset( $_GET['action'] ) && 'recheck-permissions' === $_GET['action'] ) {
 			$notices = Admin_Notices::get_notices();
 			foreach ( $notices['notices'] as $key => $notice ) {
-				if ( $notice['type'] === 'permission-issue' ) {
+				if ( 'permission-issue' === $notice['type'] ) {
 					if ( File_Directory::is_protected_file( $notice['data']['file'], false ) ) {
 						Admin_Notices::remove_notice( $key );
 					}
@@ -52,11 +83,19 @@ class Admin_Options {
 
 		if ( isset( $_POST[ $option_name ] ) ) {
 
-			if ( wp_verify_nonce( $_POST['_wpnonce'] ) ) {
+			if ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ) ) ) {
 
-				$license = sanitize_text_field( $_POST[ $option_name ] );
-				$tag     = sanitize_text_field( $_POST[ $tag_option_name ] );
-				$action  = sanitize_text_field( $_POST['action'] );
+				$tag    = '';
+				$action = 'activate';
+
+				$license = sanitize_text_field( wp_unslash( $_POST[ $option_name ] ) );
+				if ( isset( $_POST['action'] ) ) {
+					$action = sanitize_text_field( wp_unslash( $_POST['action'] ) );
+				}
+
+				if ( isset( $_POST[ $tag_option_name ] ) ) {
+					$tag = sanitize_text_field( wp_unslash( $_POST[ $tag_option_name ] ) );
+				}
 
 				$url  = $this->api_url . 'activate';
 				$args = array(
@@ -79,18 +118,18 @@ class Admin_Options {
 				Debug::log( 'Result status: ' . $url, $status );
 				Debug::log( 'Result body: ' . $url, wp_remote_retrieve_body( $activate ) );
 
-				if ( $action === 'deactivate' ) {
+				if ( 'deactivate' === $action ) {
 					$license = '';
 				}
 
-				if ( $status !== 200 && $action === 'activate' ) {
+				if ( 200 !== $status && 'activate' === $action ) {
 					echo '<div class="notice notice-error"><p>Failed to activate license.</p></div>';
 				} else {
-					if ( $action === 'activate' ) {
+					if ( 'activate' === $action ) {
 						Updater::check_for_updates();
-						$message = __( 'License activated!', 'premia-demo' );
+						$message = __( 'License activated!', 'premia' );
 					} else {
-						$message = __( 'License deactivated!', 'premia-demo' );
+						$message = __( 'License deactivated!', 'premia' );
 					}
 
 					echo '<div class="notice notice-success"><p>' . esc_html( $message ) . '</p></div>';
@@ -118,35 +157,35 @@ class Admin_Options {
 
 			$status = wp_remote_retrieve_response_code( $activate );
 
-			if ( $status !== 200 ) {
+			if ( 200 !== $status ) {
 				$license_verified = false;
-				echo '<div class="notice notice-error"><p>' . __( 'Please re-activate your license.', 'premia-demo' ) . '</p></div>';
+				echo '<div class="notice notice-error"><p>' . esc_html__( 'Please re-activate your license.', 'premia' ) . '</p></div>';
 			}
 		}
 		?>
 		<div class="wrap">
-		<h1>Premia <?php _e( 'Settings', 'premia' ); ?></h1>
+		<h1>Premia <?php esc_html_e( 'Settings', 'premia' ); ?></h1>
 		<table class="form-table" role="presentation">
 		<form method="POST">
 		<?php wp_nonce_field(); ?>
 		<tbody>
 			<tr>
-				<th scope="row"><label for="<?php echo esc_html( $option_name ); ?>"><?php _e( 'License Key', 'premia' ); ?></label></th>
+				<th scope="row"><label for="<?php echo esc_html( $option_name ); ?>"><?php esc_html_e( 'License Key', 'premia' ); ?></label></th>
 				<td>
 					<?php
-					echo '<input type="text" name="' . esc_html( $option_name ) . '" id="' . esc_html( $option_name ) . '" ' . ( ( ! empty( $current_license ) && $license_verified === true ) ? 'readonly="readonly"' : '' ) . ' value="' . esc_html( $current_license ) . '" placeholder="' . __( 'Enter License key', 'premia' ) . '" class="regular-text" />';
-					echo '<input type="hidden" name="action" value="' . ( ( ! empty( $current_license ) && $license_verified === true ) ? 'deactivate' : 'activate' ) . '" />';
-					echo '<input class="button-primary" type="submit" value="' . ( ( ! empty( $current_license ) && $license_verified === true ) ? 'Deactivate' : 'Activate' ) . '" />';
+					echo '<input type="text" name="' . esc_html( $option_name ) . '" id="' . esc_html( $option_name ) . '" ' . ( ( ! empty( $current_license ) && true === $license_verified ) ? 'readonly="readonly"' : '' ) . ' value="' . esc_html( $current_license ) . '" placeholder="' . esc_html__( 'Enter License key', 'premia' ) . '" class="regular-text" />';
+					echo '<input type="hidden" name="action" value="' . ( ( ! empty( $current_license ) && true === $license_verified ) ? 'deactivate' : 'activate' ) . '" />';
+					echo '<input class="button-primary" type="submit" value="' . ( ( ! empty( $current_license ) && true === $license_verified ) ? 'Deactivate' : 'Activate' ) . '" />';
 					?>
 				</td>
 			</tr>
 			<?php if ( WP_DEBUG ) : ?>
 			<tr>
-				<th scope="row"><label for="<?php echo esc_html( $tag_option_name ); ?>"><?php _e( 'Tag', 'premia' ); ?></label></th>
+				<th scope="row"><label for="<?php echo esc_html( $tag_option_name ); ?>"><?php esc_html_e( 'Tag', 'premia' ); ?></label></th>
 				<td>
 					<?php
-					echo '<input type="text" name="' . esc_html( $tag_option_name ) . '" id="' . esc_html( $tag_option_name ) . '" value="' . esc_html( $current_tag ) . '" placeholder="' . __( 'Enter tag', 'premia' ) . '" class="regular-text" />';
-					echo '<input class="button-primary" type="submit" value="' . __( 'Update', 'premia' ) . '" />';
+					echo '<input type="text" name="' . esc_html( $tag_option_name ) . '" id="' . esc_html( $tag_option_name ) . '" value="' . esc_html( $current_tag ) . '" placeholder="' . esc_html__( 'Enter tag', 'premia' ) . '" class="regular-text" />';
+					echo '<input class="button-primary" type="submit" value="' . esc_html__( 'Update', 'premia' ) . '" />';
 					?>
 				</td>
 			</tr>
@@ -155,8 +194,8 @@ class Admin_Options {
 		</table>
 		</form>
 		<div class="wrap">
-			<h1><?php _e( 'Status', 'premia' ); ?></h1>
-			<p><a class="button button-secondary" href="<?php echo admin_url( 'admin.php?page=premia-settings&action=recheck-permissions' ); ?>"><?php _e( 'Re-check permissions', 'premia' ); ?></a></p>
+			<h1><?php esc_html_e( 'Status', 'premia' ); ?></h1>
+			<p><a class="button button-secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=premia-settings&action=recheck-permissions' ) ); ?>"><?php esc_html_e( 'Re-check permissions', 'premia' ); ?></a></p>
 		</div>
 		</div>
 		<?php
