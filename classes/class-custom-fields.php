@@ -34,7 +34,7 @@ class Custom_Fields {
 	 */
 	public function init() {
 		add_action( 'add_meta_boxes', array( $this, 'add_metabox' ) );
-		add_action( 'save_post', array( $this, 'update_fields' ) );
+		add_action( 'save_post', array( $this, 'update_fields' ), 20, 2 );
 
 		add_filter( 'premia_update_field', array( $this, 'replace_github_url' ) );
 		add_filter( 'premia_update_field', array( $this, 'github_remove_last_slash' ) );
@@ -95,6 +95,11 @@ class Custom_Fields {
 					'type'    => 'checkbox',
 					'label'   => __( 'Do not validate licenses', 'premia' ),
 					'desc'    => __( 'When enabling this option, license checks are disabled.', 'premia' ),
+					'visible' => true,
+				),
+				array(
+					'name'    => '_updater_nonce',
+					'type'    => 'nonce',
 					'visible' => true,
 				),
 			)
@@ -178,6 +183,9 @@ class Custom_Fields {
 							echo '</ul>';
 						}
 						break;
+					case 'nonce':
+						wp_nonce_field( -1, esc_attr( $field['name'] ) );
+						break;
 					default:
 						echo '<label for="' . esc_attr( $field['name'] ) . '">' . esc_attr( $field['label'] ) . '</label><br/>';
 						echo '<input id="' . esc_attr( $field['name'] ) . '" type="' . esc_attr( $field['type'] ) . '" name="' . esc_attr( $field['name'] ) . '" value="' . esc_html( get_post_meta( $post->ID, $field['name'], true ) ) . '" />';
@@ -212,13 +220,22 @@ class Custom_Fields {
 	/**
 	 * Update fields
 	 *
-	 * @param int $post_id The Post ID.
+	 * @param int    $post_id The Post ID.
+	 * @param object $post A WP_Post object.
 	 */
-	public function update_fields( $post_id ) {
+	public function update_fields( $post_id, $post ) {
+
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		if ( 'auto-draft' === $post->post_status ) {
+			return;
+		}
 
 		$fields = $this->get_fields();
 
-		if ( isset( $_POST['_wpnonce'] ) && wp_verify_nonce( sanitize_key( $_POST['_wpnonce'] ) ) ) {
+		if ( isset( $_POST['_updater_nonce'] ) && wp_verify_nonce( sanitize_key( $_POST['_updater_nonce'] ) ) ) {
 			foreach ( $fields as $field ) {
 				$value = '';
 				if ( isset( $_POST[ $field['name'] ] ) ) {
