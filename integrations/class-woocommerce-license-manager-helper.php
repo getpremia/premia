@@ -53,7 +53,29 @@ class Woocommerce_License_Manager_Helper {
 			add_filter( 'premia_get_license_by_license_key', array( $this, 'get_license_by_license_key' ), 10, 2 );
 			add_filter( 'premia_get_installations', array( $this, 'get_installations' ), 10, 2 );
 			add_filter( 'premia_is_license_active', array( $this, 'is_license_active' ), 10, 2 );
+			add_filter( 'woocommerce_account_menu_items', array( $this, 'move_license_keys_tab' ), 20 );
 		}
+	}
+
+	/**
+	 * Move the license keys menu item
+	 *
+	 * @param array $items Array of menu items.
+	 */
+	public function move_license_keys_tab( $items ) {
+		$menu = array();
+		if ( isset( $items['view-license-keys'] ) ) {
+			$license_keys = $items['view-license-keys'];
+			unset( $items['view-license-keys'] );
+		}
+		foreach ( $items as $key => $item ) {
+			$menu[ $key ] = $item;
+			if ( 'downloads' === $key && isset( $license_keys ) ) {
+				$menu['view-license-keys'] = $license_keys;
+			}
+		}
+
+		return $menu;
 	}
 
 	/**
