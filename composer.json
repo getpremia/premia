@@ -11,7 +11,8 @@
         "wp-coding-standards/wpcs": "*"
     },
     "require": {
-        "yahnis-elsts/plugin-update-checker": "^4.11"
+        "yahnis-elsts/plugin-update-checker": "^4.11",
+        "erusev/parsedown": "^1.7"
     },
     "autoload": {
         "classmap": [
