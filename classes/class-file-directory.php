@@ -53,7 +53,7 @@ class File_Directory {
 		}
 
 		if ( ! file_exists( $base_dir . 'releases/' . $name . '/' . $version . '/.htaccess' ) ) {
-			self::create_htaccess( $base_dir . 'releases/' . $name . '/' . $version . '.htaccess' );
+			self::create_htaccess( $base_dir . 'releases/' . $name . '/' . $version . '/.htaccess' );
 		}
 
 		return array(
