@@ -18,7 +18,7 @@ class Updater {
 	 *
 	 * @var string $api_url The API url.
 	 */
-	private $api_url = 'https://getpremia.com/wp-json/license-updater/v1/';
+	private $api_url = 'https://getpremia.com/wp-json/premia/v1/';
 
 	/**
 	 * The Updater library instance.

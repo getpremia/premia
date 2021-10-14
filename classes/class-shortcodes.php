@@ -90,7 +90,7 @@ class Shortcodes {
 				'post_id'  => $id,
 			);
 
-			$download_link = get_rest_url() . 'license-updater/v1/download_update';
+			$download_link = get_rest_url() . 'premia/v1/download_update';
 			$download_link = add_query_arg( $license_info, $download_link );
 
 			$data = array(

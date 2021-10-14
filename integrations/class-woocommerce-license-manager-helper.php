@@ -133,7 +133,7 @@ class Woocommerce_License_Manager_Helper {
 
 					$file_name = $post->post_name . '.zip';
 
-					$download_url = get_rest_url() . 'license-updater/v1/download_update';
+					$download_url = get_rest_url() . 'premia/v1/download_update';
 					$download_url = add_query_arg( $license_info, $download_url );
 					$downloads[]  = array(
 						'download_url'        => $download_url,
@@ -181,7 +181,7 @@ class Woocommerce_License_Manager_Helper {
 						'plugin'      => $post->post_name,
 						'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
 					);
-					$download_url = get_rest_url() . 'license-updater/v1/download_update';
+					$download_url = get_rest_url() . 'premia/v1/download_update';
 					$download_url = add_query_arg( $license_info, $download_url );
 					$downloads[]  = array(
 						'link' => $download_url,

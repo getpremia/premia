@@ -230,7 +230,7 @@ class Woocommerce_Helper {
 
 			$file_name = $linked_post->post_name . '.zip';
 
-			$download_url = get_rest_url() . 'license-updater/v1/download_update';
+			$download_url = get_rest_url() . 'premia/v1/download_update';
 			$download_url = add_query_arg( $license_info, $download_url );
 			$downloads[]  = array(
 				'download_url'        => $download_url,
@@ -279,7 +279,7 @@ class Woocommerce_Helper {
 							'_wpnonce'    => wp_create_nonce( 'wp_rest' ),
 							'post_id'     => $post->ID,
 						);
-						$download_url = get_rest_url() . 'license-updater/v1/download_update';
+						$download_url = get_rest_url() . 'premia/v1/download_update';
 						$download_url = add_query_arg( $license_info, $download_url );
 						$downloads[]  = array(
 							'link' => $download_url,

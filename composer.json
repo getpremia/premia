@@ -1,9 +1,9 @@
 {
-    "name": "mklasen/woocommerce-license-updater",
+    "name": "getpremia/premia",
     "authors": [
         {
             "name": "Marinus Klasen",
-            "email": "marinus@mklasen.nl"
+            "email": "info@getpremia.com"
         }
     ],
     "require-dev": {
