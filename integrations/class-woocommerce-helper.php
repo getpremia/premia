@@ -54,6 +54,7 @@ class Woocommerce_Helper {
 			add_filter( 'premia_customize_license_fields', array( $this, 'add_linked_order_field' ) );
 			add_filter( 'premia_customize_post_fields', array( $this, 'add_wc_fields' ) );
 			add_filter( 'premia_supported_post_types', array( $this, 'add_product_support' ) );
+			add_filter( 'premia_customize_update_info', array( $this, 'add_product_information' ), 10, 3 );
 		}
 
 		if ( ! Woocommerce_License_Manager_Helper::is_license_manager_active() ) {
@@ -78,6 +79,33 @@ class Woocommerce_Helper {
 			$meta->display_value = '<a href="' . get_edit_post_link( $meta->value ) . '">' . get_the_title( $meta->value ) . '</a>';
 		}
 		return $formatted_meta;
+	}
+
+	/**
+	 * Add product information.
+	 *
+	 * @param array $output Existing output.
+	 * @param array $license_info License information.
+	 * @param int   $post_id The post ID.
+	 * @return array New information.
+	 */
+	public function add_product_information( $output, $license_info, $post_id ) {
+
+		$output['sections']['screenshots'] = '';
+
+		$product        = new \WC_product( $post_id );
+		$attachment_ids = $product->get_gallery_image_ids();
+
+		$output['sections']['description'] = $product->get_description();
+
+		if ( is_array( $attachment_ids ) && ! empty( $attachment_ids ) ) {
+			$output['sections']['screenshots'] .= '<ol>';
+			foreach ( $attachment_ids as $attachment_id ) {
+				$output['sections']['screenshots'] .= '<li><a href="' . wp_get_attachment_image_url( $attachment_id, 'full' ) . '">' . wp_get_attachment_image( $attachment_id, 'large' ) . '</a></li>';
+			}
+			$output['sections']['screenshots'] .= '</ol>';
+		}
+		return $output;
 	}
 
 	/**
