@@ -296,19 +296,30 @@ class REST_Endpoints {
 				}
 
 				if ( ! is_wp_error( $latest ) && wp_remote_retrieve_response_code( $latest ) === 200 ) {
-					$latest_info                       = json_decode( wp_remote_retrieve_body( $latest ) );
-					$output['version']                 = $latest_info->tag_name;
-					$output['sections']['description'] = $latest_info->body;
+					$latest_info                     = json_decode( wp_remote_retrieve_body( $latest ) );
+					$output['version']               = $latest_info->tag_name;
+					$parsedown                       = new \Parsedown();
+					$output['sections']['changelog'] = preg_replace( '/<h\d.*?>(.*?)<\/h\d>/ims', '<h4>$1</h4>', $parsedown->text( $latest_info->body ) );
 				} else {
 					$output['name'] = 'Failed to get the latest version information.';
 					Debug::log( 'Failed to get the latest version information. Did you set the right token?', $latest );
 				}
 
-				if ( empty( $output['sections']['description'] ) ) {
-					$output['sections']['description'] = '<p>This release contains version ' . $output['version'] . ' of the ' . $output['name'] . ' plugin</p>';
+				if ( empty( $output['sections']['changelog'] ) ) {
+					$output['sections']['changelog'] = '<p>This release contains version ' . $output['version'] . ' of the ' . $output['name'] . ' plugin</p>';
 				}
 
-				$download_url    = add_query_arg( $license_info, get_rest_url() . 'license-updater/v1/download_update' );
+				// @todo: Should be logo.
+				$output['icons']['2x']     = wp_get_attachment_image_url( get_post_thumbnail_id( $post->ID ) );
+				$output['icons']['1x']     = wp_get_attachment_image_url( get_post_thumbnail_id( $post->ID ) );
+				$output['banners']['high'] = wp_get_attachment_image_url( get_post_thumbnail_id( $post->ID ), 'full' );
+				$output['banners']['low']  = wp_get_attachment_image_url( get_post_thumbnail_id( $post->ID ), 'large' );
+
+				// Extra params: required_php, tested, requires, active_installs, api, slug, donate_link, rating, num_ratings, contributors.
+				$output['last_updated'] = $latest_info->published_at;
+				$output['author']       = '<a href="' . get_site_url() . '">' . get_bloginfo( 'name' ) . '</a>';
+
+				$download_url    = add_query_arg( $license_info, get_rest_url() . 'premia/v1/download_update' );
 				$do_not_validate = get_post_meta( $post->ID, '_updater_do_not_validate_licenses', true );
 
 				if ( 'on' === $do_not_validate ) {
@@ -324,7 +335,7 @@ class REST_Endpoints {
 
 		Debug::log( 'Check updates answer: ', $output );
 
-		return $output;
+		return apply_filters( 'premia_customize_update_info', $output, $license_info, $post->ID );
 	}
 
 	/**
