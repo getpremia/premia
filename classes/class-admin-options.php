@@ -44,6 +44,7 @@ class Admin_Options {
 	 */
 	public function init() {
 		add_action( 'admin_menu', array( $this, 'add_menu_page' ) );
+		add_action( 'admin_init', array( $this, 'check_permissions' ) );
 	}
 
 	/**
@@ -61,15 +62,9 @@ class Admin_Options {
 	}
 
 	/**
-	 * The settings page.
+	 * Check Permissions and possibly remove notice.
 	 */
-	public function settings_page() {
-
-		$license_verified = true;
-
-		$option_name     = str_replace( '-', '_', $this->plugin_name ) . '_license_key';
-		$tag_option_name = str_replace( '-', '_', $this->plugin_name ) . '_tag';
-
+	public function check_permissions() {
 		if ( isset( $_GET['action'] ) && 'recheck-permissions' === $_GET['action'] ) {
 			$notices = Admin_Notices::get_notices();
 			foreach ( $notices['notices'] as $key => $notice ) {
@@ -80,6 +75,17 @@ class Admin_Options {
 				}
 			}
 		}
+	}
+
+	/**
+	 * The settings page.
+	 */
+	public function settings_page() {
+
+		$license_verified = true;
+
+		$option_name     = str_replace( '-', '_', $this->plugin_name ) . '_license_key';
+		$tag_option_name = str_replace( '-', '_', $this->plugin_name ) . '_tag';
 
 		if ( isset( $_POST[ $option_name ] ) ) {
 

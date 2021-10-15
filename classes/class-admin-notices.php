@@ -71,7 +71,7 @@ class Admin_Notices {
 			foreach ( $notices['notices'] as $key => $notice ) {
 				$extra = '';
 				if ( 'permission-issue' === $notice['type'] ) {
-					$extra = '<a href="">' . __( 'Go to settings', 'premia' ) . '</a>';
+					$extra = '<a href="' . esc_url( admin_url( 'admin.php?page=premia-settings' ) ) . '">' . __( 'Go to settings', 'premia' ) . '</a>';
 				}
 				echo '<div data-type="premia-notice" data-id="' . esc_attr( $key ) . '" class="notice notice-' . esc_html( $notice['notice_type'] ) . '">';
 				echo '<p>' . esc_html( $notice['message'] ) . ( ! empty( $extra ) ? ' ' . wp_kses_post( $extra ) : '' ) . '</p>';
@@ -112,11 +112,11 @@ class Admin_Notices {
 	 */
 	public static function remove_notice( $id ) {
 		$notices = self::get_notices();
-		$notice  = $notices['notices'][ $id ];
+		$notice = $notices['notices'][ $id ];
 		unset( $notices['notices'][ $id ] );
-		foreach ( $notice['existing_types'] as $key => $type ) {
+		foreach ( $notices['existing_types'] as $key => $type ) {
 			if ( $type === $notice['type'] ) {
-				unset( $notice['existing_types'][ $key ] );
+				unset( $notices['existing_types'][ $key ] );
 			}
 		}
 		self::update_notices( $notices );

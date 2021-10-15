@@ -103,6 +103,7 @@ class File_Directory {
 			),
 			2
 		);
+		
 		if ( 200 !== $status ) {
 			return true;
 		}
@@ -110,7 +111,7 @@ class File_Directory {
 		Debug::log( 'Permission issue detected.' );
 
 		Admin_Notices::add_notice(
-			__( 'Premia has detected a permission issue. Make sure your directories are protected.', 'premia' ),
+			__( 'Premia detected a permission issue. Make sure your directories are protected and re-check permissions.', 'premia' ),
 			'permission-issue',
 			time(),
 			'error',
