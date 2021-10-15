@@ -189,7 +189,7 @@ class Woocommerce_Helper {
 						)
 					);
 					break;
-				default:
+				case 'input':
 					woocommerce_wp_text_input(
 						array(
 							'id'          => $field['name'],
