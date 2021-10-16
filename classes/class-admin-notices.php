@@ -112,7 +112,7 @@ class Admin_Notices {
 	 */
 	public static function remove_notice( $id ) {
 		$notices = self::get_notices();
-		$notice = $notices['notices'][ $id ];
+		$notice  = $notices['notices'][ $id ];
 		unset( $notices['notices'][ $id ] );
 		foreach ( $notices['existing_types'] as $key => $type ) {
 			if ( $type === $notice['type'] ) {
