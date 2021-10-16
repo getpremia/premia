@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<ruleset name="wifinow">
+<ruleset name="premia">
     <description>PHPCS</description>
 
-    <config name="installed_paths" value="/home/mklasen/server-management/sniffers/wpcs" />
+    <config name="installed_paths" value="vendor/wp-coding-standards/wpcs" />
 
     <config name="ignore_warnings_on_exit" value="1" />
 
