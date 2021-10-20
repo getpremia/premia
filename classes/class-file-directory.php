@@ -103,7 +103,7 @@ class File_Directory {
 			),
 			2
 		);
-		
+
 		if ( 200 !== $status ) {
 			return true;
 		}
