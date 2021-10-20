@@ -199,6 +199,16 @@ class Woocommerce_Helper {
 						)
 					);
 					break;
+				case 'password':
+					woocommerce_wp_text_input(
+						array(
+							'id'          => $field['name'],
+							'label'       => $field['label'],
+							'description' => $field['desc'],
+							'type'        => $field['type'],
+						)
+					);
+					break;
 			}
 		}
 
