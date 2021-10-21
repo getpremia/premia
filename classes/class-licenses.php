@@ -362,10 +362,12 @@ class Licenses {
 		}
 
 		Debug::log( 'Sites: ', $sites, 2 );
-		Debug::log( 'Site: ', $license_info['site_url'], 2 );
 
-		if ( in_array( $license_info['site_url'], $sites, true ) || is_user_logged_in() ) {
-			$validate = true;
+		if ( isset( $license_info['site_url'] ) ) {
+			Debug::log( 'Site: ', $license_info['site_url'], 2 );
+			if ( in_array( $license_info['site_url'], $sites, true ) || is_user_logged_in() ) {
+				$validate = true;
+			}
 		}
 
 		Debug::log( 'Validation result: ', $validate );
