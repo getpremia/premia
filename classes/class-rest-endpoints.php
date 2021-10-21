@@ -315,9 +315,12 @@ class REST_Endpoints {
 				$output['banners']['high'] = wp_get_attachment_image_url( get_post_thumbnail_id( $post->ID ), 'full' );
 				$output['banners']['low']  = wp_get_attachment_image_url( get_post_thumbnail_id( $post->ID ), 'large' );
 
+				if ( isset( $latest_info ) && property_exists( $latest_info, 'published_at' ) ) {
+					$output['last_updated'] = $latest_info->published_at;
+				}
+
 				// Extra params: required_php, tested, requires, active_installs, api, slug, donate_link, rating, num_ratings, contributors.
-				$output['last_updated'] = $latest_info->published_at;
-				$output['author']       = '<a href="' . get_site_url() . '">' . get_bloginfo( 'name' ) . '</a>';
+				$output['author'] = '<a href="' . get_site_url() . '">' . get_bloginfo( 'name' ) . '</a>';
 
 				$download_url    = add_query_arg( $license_info, get_rest_url() . 'premia/v1/download_update' );
 				$do_not_validate = get_post_meta( $post->ID, '_updater_do_not_validate_licenses', true );
