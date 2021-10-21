@@ -140,6 +140,13 @@ class Woocommerce_Helper {
 						'desc'    => __( 'Enabling this option will generate licenses for each purchase of this item.', 'premia' ),
 						'visible' => true,
 					),
+					array(
+						'name'    => '_updater_license_validity',
+						'type'    => 'number',
+						'label'   => __( 'Valid for', 'premia' ),
+						'desc'    => __( 'The amount of days the product license is valid for', 'premia' ),
+						'visible' => true,
+					),
 				),
 				$fields
 			);
@@ -194,6 +201,7 @@ class Woocommerce_Helper {
 					);
 					break;
 				case 'text':
+				case 'number':
 					woocommerce_wp_text_input(
 						array(
 							'id'          => $field['name'],

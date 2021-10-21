@@ -182,12 +182,21 @@ class Licenses {
 				'user_id'    => $user_id,
 			)
 		);
+
+		$license_days = get_post_meta( $product_id, '_updater_license_validity', true );
+
+		$today = new \Datetime( time() );
+		$today->modify( "+{$license_days}days" );
+
 		$license_id = wp_insert_post(
 			array(
 				'post_title'  => self::generate_license(),
 				'post_status' => 'publish',
 				'post_type'   => 'prem_license',
 				'post_author' => $user_id,
+				'meta_input'  => array(
+					'_premia_expiry_date' => $today->getTimestamp(),
+				),
 			)
 		);
 
@@ -355,6 +364,11 @@ class Licenses {
 			return false;
 		}
 
+		if ( self::license_is_expired( $license_info ) ) {
+			$output['name'] = 'License has expired.';
+			return false;
+		}
+
 		$sites = self::get_installations( $license_info['license_key'] );
 
 		if ( ! is_array( $sites ) ) {
@@ -410,5 +424,34 @@ class Licenses {
 			$sites = get_post_meta( $license->ID, 'installations', true );
 		}
 		return apply_filters( 'premia_get_installations', $sites, $license_key );
+	}
+
+	/**
+	 * Check if license is expired.
+	 *
+	 * @param array $license_info An array of license information.
+	 * @return bool The result.
+	 */
+	public static function license_is_expired( $license_info ) {
+		$status = false;
+
+		Debug::log( 'Check if license is expired.' );
+
+		if ( isset( $license_info['license_key'] ) ) {
+			$license = self::get_license_by_license_key( $license_info['license_key'] );
+
+			if ( ! is_wp_error( $license ) ) {
+				$expiry_timestamp = get_post_meta( $license->ID, '_premia_expiry_date', true );
+
+				if ( ! empty( $expiry_timestamp ) ) {
+					if ( $expiry_timestamp < time() ) {
+						$status = true;
+						Debug::log( 'License is expired.', $license_info );
+					}
+				}
+			}
+		}
+
+		return $status;
 	}
 }
