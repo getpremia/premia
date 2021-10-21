@@ -93,17 +93,21 @@ class Woocommerce_Helper {
 
 		$output['sections']['screenshots'] = '';
 
-		$product        = new \WC_product( $post_id );
-		$attachment_ids = $product->get_gallery_image_ids();
+		if ( get_post_type( $post_id ) === 'product' ) {
 
-		$output['sections']['description'] = $product->get_description();
+			$product = new \WC_product( $post_id );
 
-		if ( is_array( $attachment_ids ) && ! empty( $attachment_ids ) ) {
-			$output['sections']['screenshots'] .= '<ol>';
-			foreach ( $attachment_ids as $attachment_id ) {
-				$output['sections']['screenshots'] .= '<li><a href="' . wp_get_attachment_image_url( $attachment_id, 'full' ) . '">' . wp_get_attachment_image( $attachment_id, 'large' ) . '</a></li>';
+			$attachment_ids = $product->get_gallery_image_ids();
+
+			$output['sections']['description'] = $product->get_description();
+
+			if ( is_array( $attachment_ids ) && ! empty( $attachment_ids ) ) {
+				$output['sections']['screenshots'] .= '<ol>';
+				foreach ( $attachment_ids as $attachment_id ) {
+					$output['sections']['screenshots'] .= '<li><a href="' . wp_get_attachment_image_url( $attachment_id, 'full' ) . '">' . wp_get_attachment_image( $attachment_id, 'large' ) . '</a></li>';
+				}
+				$output['sections']['screenshots'] .= '</ol>';
 			}
-			$output['sections']['screenshots'] .= '</ol>';
 		}
 		return $output;
 	}
