@@ -133,24 +133,26 @@ class Woocommerce_Helper {
 	 */
 	public function add_wc_fields( $fields ) {
 		if ( 'product' === get_post_type() ) {
-			$fields = array_merge(
+			$extra_fields = array(
 				array(
-					array(
-						'name'    => '_updater_enable_license',
-						'type'    => 'checkbox',
-						'label'   => __( 'Enable licensing', 'premia' ),
-						'desc'    => __( 'Enabling this option will generate licenses for each purchase of this item.', 'premia' ),
-						'visible' => true,
-					),
-					array(
-						'name'    => '_updater_license_validity',
-						'type'    => 'number',
-						'label'   => __( 'Valid for', 'premia' ),
-						'desc'    => __( 'The amount of days the product license is valid for', 'premia' ),
-						'visible' => true,
-					),
+					'name'    => '_updater_enable_license',
+					'type'    => 'checkbox',
+					'label'   => __( 'Enable licensing', 'premia' ),
+					'desc'    => __( 'Enabling this option will generate licenses for each purchase of this item.', 'premia' ),
+					'visible' => true,
 				),
-				$fields
+				array(
+					'name'    => '_updater_license_validity',
+					'type'    => 'number',
+					'label'   => __( 'Valid for', 'premia' ),
+					'desc'    => __( 'The amount of days the product license is valid for. (defaults to 365, enter 0 for unlimited, unused in subscriptions)', 'premia' ),
+					'visible' => true,
+				),
+			);
+
+			$fields = array_merge(
+				$extra_fields,
+				$fields,
 			);
 		}
 		return $fields;
