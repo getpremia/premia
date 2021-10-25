@@ -62,6 +62,7 @@ class Licenses {
 	 */
 	public function manage_columns( $columns ) {
 		$columns['post']     = __( 'Linked post', 'premia' );
+		$columns['expires']  = __( 'Expires on', 'premia' );
 		$columns['customer'] = __( 'Customer', 'premia' );
 		return $columns;
 	}
@@ -82,6 +83,15 @@ class Licenses {
 				$customer  = get_post_field( 'post_author', $post_id );
 				$user_data = get_userdata( $customer );
 				echo '<a href="' . esc_url( get_edit_user_link( $customer ) ) . '">' . esc_html( $user_data->data->display_name ) . '</a>';
+				break;
+			case 'expires':
+				$datetime = get_post_meta( $post_id, '_premia_expiry_date', true );
+				if ( ! empty( $datetime ) ) {
+					$date = new \Datetime();
+					$date->setTimestamp( $datetime );
+					echo esc_html( $date->format( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) );
+				}
+				break;
 		}
 	}
 
