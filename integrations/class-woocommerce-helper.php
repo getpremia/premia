@@ -314,7 +314,6 @@ class Woocommerce_Helper {
 	 * @param object $order a WC_Order object.
 	 */
 	public function add_downloads( $order ) {
-		echo '<header><h2>' . esc_html__( 'Downloads', 'premia' ) . '</h2></header>';
 
 		$downloads = array();
 
@@ -346,18 +345,19 @@ class Woocommerce_Helper {
 
 		$downloads = apply_filters( 'premia_order_downloads', $downloads, $order );
 
-		if ( is_user_logged_in() ) {
+		if ( ! empty( $downloads ) ) {
+			echo '<header><h2>' . esc_html__( 'Downloads', 'premia' ) . '</h2></header>';
 
-			if ( ! empty( $downloads ) ) {
-				echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '</p>';
-				foreach ( $downloads as $download ) {
-					echo '<p><a class="button" href="' . esc_html( $download['link'] ) . '">Download ' . esc_html( $download['name'] ) . '</a></p>';
+			if ( is_user_logged_in() ) {
+				if ( ! empty( $downloads ) ) {
+					echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '</p>';
+					foreach ( $downloads as $download ) {
+						echo '<p><a class="button" href="' . esc_html( $download['link'] ) . '">Download ' . esc_html( $download['name'] ) . '</a></p>';
+					}
+				} else {
+					echo '<p>' . esc_html__( 'Login to access your downloads.', 'premia' ) . '</p>';
 				}
-			} else {
-				echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '</p>';
 			}
-		} else {
-			echo '<p>' . esc_html__( 'Login to access your downloads.', 'premia' ) . '</p>';
 		}
 	}
 
@@ -367,7 +367,6 @@ class Woocommerce_Helper {
 	 * @param object $order a WC_Order object.
 	 */
 	public function add_licenses( $order ) {
-		echo '<header><h2>' . esc_html__( 'Licenses', 'premia' ) . '</h2></header>';
 
 		$licenses = array();
 
@@ -392,14 +391,18 @@ class Woocommerce_Helper {
 		$licenses = apply_filters( 'premia_order_licenses', $licenses, $order );
 
 		if ( ! empty( $licenses ) ) {
-			echo '<table>';
-			echo '<tr><th>' . esc_html__( 'Name', 'premia' ) . '</th><th>' . esc_html__( 'License', 'premia' ) . '</th></tr>';
-			foreach ( $licenses as $license ) {
-				echo '<tr><td><strong>' . esc_html( $license['name'] ) . '</strong></td><td><code>' . esc_html( $license['license_key'] ) . '</code></td></tr>';
+
+			if ( is_user_logged_in() ) {
+				echo '<header><h2>' . esc_html__( 'Licenses', 'premia' ) . '</h2></header>';
+				echo '<table>';
+				echo '<tr><th>' . esc_html__( 'Name', 'premia' ) . '</th><th>' . esc_html__( 'License', 'premia' ) . '</th></tr>';
+				foreach ( $licenses as $license ) {
+					echo '<tr><td><strong>' . esc_html( $license['name'] ) . '</strong></td><td><code>' . esc_html( $license['license_key'] ) . '</code></td></tr>';
+				}
+				echo '</table>';
+			} else {
+				echo '<p>' . esc_html__( 'Login to access your licenses.', 'premia' ) . '</p>';
 			}
-			echo '</table>';
-		} else {
-			echo '<p>' . esc_html__( 'Licenses will show here after your purchase is confirmed.', 'premia' ) . '</p>';
 		}
 	}
 
@@ -426,12 +429,11 @@ class Woocommerce_Helper {
 	 * @return void
 	 */
 	public function maybe_create_licences( $order_id ) {
-		Debug::log( 'Maybe create license: ', $order_id );
+		Debug::log( "Maybe create license for #{$order_id}" );
 		$order           = wc_get_order( $order_id );
 		$license_created = $order->get_meta( '_license_created' );
-		Debug::log( 'License created?: ', $license_created );
 		if ( empty( $license_created ) || false === $license_created ) {
-			Debug::log( 'Create license: ', $order_id );
+			Debug::log( 'Create license for order #' . $order_id );
 			foreach ( $order->get_items() as $item_id => $item ) {
 				$product_id      = $item->get_product_id();
 				$license_enabled = get_post_meta( $product_id, '_updater_enable_license', true );
