@@ -63,6 +63,7 @@ class Woocommerce_Helper {
 			add_action( 'woocommerce_order_status_completed', array( $this, 'maybe_create_licences' ) );
 			add_action( 'woocommerce_order_status_cancelled', array( $this, 'maybe_deactivate_licences' ) );
 			add_action( 'woocommerce_order_refunded', array( $this, 'maybe_deactivate_licences' ) );
+			add_action( 'woocommerce_subscription_status_expired', array( $this, 'subscription_expired' ) );
 			add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( $this, 'format_license_meta' ), 10 );
 			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'add_licenses' ) );
 		}
@@ -460,6 +461,19 @@ class Woocommerce_Helper {
 			}
 		}
 	}
+
+	/**
+	 * Deactivate licenses when subscription expires.
+	 *
+	 * @param object $subscription a WC_Subscription object.
+	 */
+	public function subscription_expired( $subscription ) {
+		$orders = $subscription->get_related_orders();
+		foreach ( $orders as $order_id ) {
+			$this->maybe_deactivate_licences( $order_id );
+		}
+	}
+
 	/**
 	 * Set license validity for subscriptions to zero.
 	 *
