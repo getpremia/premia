@@ -55,6 +55,7 @@ class Woocommerce_Helper {
 			add_filter( 'premia_customize_post_fields', array( $this, 'add_wc_fields' ) );
 			add_filter( 'premia_supported_post_types', array( $this, 'add_product_support' ) );
 			add_filter( 'premia_customize_update_info', array( $this, 'add_product_information' ), 10, 3 );
+			add_filter( 'premia_update_field', array( $this, 'set_subscription_to_zero' ), 10, 3 );
 		}
 
 		if ( ! Woocommerce_License_Manager_Helper::is_license_manager_active() ) {
@@ -458,5 +459,26 @@ class Woocommerce_Helper {
 				wp_trash_post( $license_id );
 			}
 		}
+	}
+	/**
+	 * Set license validity for subscriptions to zero.
+	 *
+	 * @param int   $value current value.
+	 * @param array $field Field parameters.
+	 * @param int   $post_id The post ID.
+	 * @return int The new value
+	 */
+	public function set_subscription_to_zero( $value, $field, $post_id ) {
+		if ( '_updater_license_validity' === $field['name'] ) {
+			if ( isset( $_POST['woocommerce_meta_nonce'] ) && wp_verify_nonce( sanitize_key( $_POST['woocommerce_meta_nonce'] ), 'woocommerce_save_data' ) ) {
+				if ( isset( $_POST['product-type'] ) ) {
+					$type = sanitize_text_field( wp_unslash( $_POST['product-type'] ) );
+					if ( in_array( $type, array( 'subscription', 'variable-subscription' ), true ) ) {
+						$value = 0;
+					}
+				}
+			}
+		}
+		return $value;
 	}
 }
