@@ -153,7 +153,7 @@ class Custom_Fields {
 						echo '</label>';
 						break;
 					case 'select':
-						echo '<label for="' . esc_attr( $field['name'] ) . '">' . esc_html( $field['label'] ) . '</label><br/>';
+						echo '<label for="' . esc_attr( $field['name'] ) . '"><strong>' . esc_html( $field['label'] ) . '</strong></label><br/>';
 						$choices = get_posts(
 							array(
 								'post_type'   => apply_filters( 'premia_supported_post_types', array( 'post', 'page' ) ),
@@ -169,7 +169,7 @@ class Custom_Fields {
 						echo '<div><i>' . esc_html( $field['desc'] ) . '</i></div>';
 						break;
 					case 'post_link':
-						echo '<label for="' . esc_attr( $field['name'] ) . '">' . esc_html( $field['label'] ) . '</label><br/>';
+						echo '<label for="' . esc_attr( $field['name'] ) . '"><strong>' . esc_html( $field['label'] ) . '</strong></label><br/>';
 						$value = get_post_meta( $post->ID, $field['name'], true );
 						if ( ! empty( $value ) ) {
 							$post = get_post( $value );
@@ -179,7 +179,7 @@ class Custom_Fields {
 						}
 						break;
 					case 'link_list':
-						echo '<label for="' . esc_attr( $field['name'] ) . '">' . esc_html( $field['label'] ) . '</label><br/>';
+						echo '<label for="' . esc_attr( $field['name'] ) . '"><strong>' . esc_html( $field['label'] ) . '</strong></label><br/>';
 						$value = get_post_meta( $post->ID, $field['name'], true );
 						if ( is_array( $value ) && ! empty( $value ) ) {
 							echo '<ul>';
