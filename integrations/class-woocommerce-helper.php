@@ -435,7 +435,7 @@ class Woocommerce_Helper {
 						$license_key = sanitize_text_field( wp_unslash( $_GET['license_key'] ) );
 
 						if ( 'deactivate' === $action ) {
-							$deactivate = self::deactivate(
+							$deactivate = Licenses::deactivate(
 								array(
 									'license_key' => $license_key,
 									'site_url'    => $site_url,
@@ -461,6 +461,7 @@ class Woocommerce_Helper {
 							'license_key' => $license->post_title,
 							'name'        => $post->post_title,
 							'post_id'     => $post->ID,
+							'license_id'  => $license_id,
 						);
 					}
 				}
@@ -472,7 +473,7 @@ class Woocommerce_Helper {
 		foreach ( $licenses as $data ) {
 			// translators: %s is the license key.
 			echo '<h2>' . sprintf( esc_html__( 'Manage installations for %s', 'premia' ), esc_html( $data['license_key'] ) ) . '</h2>';
-			$installs = get_post_meta( $data['post_id'], 'installations', true );
+			$installs = get_post_meta( $data['license_id'], 'installations', true );
 			if ( is_array( $installs ) && ! empty( $installs ) ) {
 				echo '<table>';
 				echo '<tr><th>' . esc_html__( 'Site', 'premia' ) . '</th><th>' . esc_html__( 'Action', 'premia' ) . '</th></tr>';
@@ -484,7 +485,7 @@ class Woocommerce_Helper {
 						array(
 							'site_url'    => esc_url( $site ),
 							'action'      => 'deactivate',
-							'license_key' => $license->getDecryptedLicenseKey(),
+							'license_key' => $data['license_key'],
 						)
 					);
 					echo '<td><a href="' . esc_url( wp_nonce_url( $deactivate_link ) ) . '" class="button" data-site="' . esc_attr( $site ) . '">Deactivate</td>';
