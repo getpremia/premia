@@ -63,7 +63,10 @@ class Woocommerce_Helper {
 			add_action( 'woocommerce_order_status_completed', array( $this, 'maybe_create_licences' ) );
 			add_action( 'woocommerce_order_status_cancelled', array( $this, 'maybe_deactivate_licences' ) );
 			add_action( 'woocommerce_order_refunded', array( $this, 'maybe_deactivate_licences' ) );
-			add_action( 'woocommerce_subscription_status_expired', array( $this, 'subscription_expired' ) );
+			add_action( 'woocommerce_subscription_status_expired', array( $this, 'subscription_paused' ) );
+			add_action( 'woocommerce_subscription_status_on-hold', array( $this, 'subscription_paused' ) );
+			add_action( 'woocommerce_subscription_status_active', array( $this, 'subscription_activated' ) );
+			add_action( 'woocommerce_subscription_status_cancelled', array( $this, 'subscription_paused' ) );
 			add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( $this, 'format_license_meta' ), 10 );
 			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'add_licenses' ) );
 		}
@@ -284,6 +287,14 @@ class Woocommerce_Helper {
 
 			$file_name = $linked_post->post_name . '.zip';
 
+			$expiry_date = get_post_meta( $post->ID, '_premia_expiry_date', true );
+
+			if ( empty( $expiry_date ) ) {
+				$access_expires = null;
+			} else {
+				$access_expires = date( 'Y-m-d', $expiry_date ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
+			}
+
 			$download_url = get_rest_url() . 'premia/v1/download_update';
 			$download_url = add_query_arg( $license_info, $download_url );
 			$downloads[]  = array(
@@ -295,7 +306,7 @@ class Woocommerce_Helper {
 				'download_name'       => $file_name,
 				'order_id'            => $linked_order_id,
 				'downloads_remaining' => '',
-				'access_expires'      => 'yes',
+				'access_expires'      => $access_expires,
 				'file'                => array(
 					'name' => $file_name,
 					'file' => $download_url,
@@ -467,14 +478,45 @@ class Woocommerce_Helper {
 	}
 
 	/**
-	 * Deactivate licenses when subscription expires.
+	 * Maybe (re-)activate license.
+	 *
+	 * @param int $order_id The Order ID.
+	 * @return void
+	 */
+	public function maybe_activate_licences( $order_id ) {
+		Debug::log( 'Maybe (re-)activate license: ', $order_id );
+		$order = wc_get_order( $order_id );
+		foreach ( $order->get_items() as $item ) {
+			$license_id = $item->get_meta( '_premia_linked_license' );
+			if ( ! empty( $license_id ) ) {
+				Debug::log( 'Untrash license: ', $license_id );
+				wp_untrash_post( $license_id );
+				wp_publish_post( $license_id );
+			}
+		}
+	}
+
+	/**
+	 * Pause a license.
 	 *
 	 * @param object $subscription a WC_Subscription object.
 	 */
-	public function subscription_expired( $subscription ) {
+	public function subscription_paused( $subscription ) {
 		$orders = $subscription->get_related_orders();
 		foreach ( $orders as $order_id ) {
 			$this->maybe_deactivate_licences( $order_id );
+		}
+	}
+
+	/**
+	 * (Re-)activate licenses.
+	 *
+	 * @param object $subscription a WC_Subscription object.
+	 */
+	public function subscription_activated( $subscription ) {
+		$orders = $subscription->get_related_orders();
+		foreach ( $orders as $order_id ) {
+			$this->maybe_activate_licences( $order_id );
 		}
 	}
 
