@@ -321,7 +321,7 @@ class Woocommerce_Helper {
 	}
 
 	/**
-	 * Add the downloads on the thank you page.
+	 * Add the downloads on the thank you and my account page.
 	 *
 	 * @param object $order a WC_Order object.
 	 */
@@ -374,7 +374,7 @@ class Woocommerce_Helper {
 	}
 
 	/**
-	 * Add the licenses on the thank you page.
+	 * Add the licenses on the thank you and my account page.
 	 *
 	 * @param object $order a WC_Order object.
 	 */
