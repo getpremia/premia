@@ -26,22 +26,21 @@ class File_Directory {
 	 */
 	public static function prepare_directories( $base_dir, $name, $version ) {
 
-		if ( ! class_exists( 'WP_Filesystem_Direct' ) ) {
-			require ABSPATH . '/wp-admin/includes/class-wp-filesystem-base.php';
-			require ABSPATH . '/wp-admin/includes/class-wp-filesystem-direct.php';
-		}
-		$fs = new \WP_Filesystem_Direct( null );
+		global $wp_filesystem;
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		WP_Filesystem();
 
 		if ( ! is_dir( $base_dir . 'releases' ) ) {
-			$fs->mkdir( $base_dir . 'releases/' );
+			error_log( 'createdir: ' . $base_dir . 'releases/' );
+			$wp_filesystem->mkdir( $base_dir . 'releases/' );
 		}
 
 		if ( ! is_dir( $base_dir . 'releases/' . $name ) ) {
-			$fs->mkdir( $base_dir . 'releases/' . $name );
+			$wp_filesystem->mkdir( $base_dir . 'releases/' . $name );
 		}
 
 		if ( ! is_dir( $base_dir . 'releases/' . $name . '/' . $version ) ) {
-			$fs->mkdir( $base_dir . 'releases/' . $name . '/' . $version );
+			$wp_filesystem->mkdir( $base_dir . 'releases/' . $name . '/' . $version );
 		}
 
 		if ( ! file_exists( $base_dir . 'releases/.htaccess' ) ) {
@@ -69,14 +68,13 @@ class File_Directory {
 	 * @param string $file Path to file.
 	 */
 	public static function create_htaccess( $file ) {
+		global $wp_filesystem;
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		WP_Filesystem();
+
 		$file_content  = 'Order Deny,Allow' . "\n";
 		$file_content .= 'Deny from all' . "\n";
-		if ( ! class_exists( 'WP_Filesystem_Direct' ) ) {
-			require ABSPATH . '/wp-admin/includes/class-wp-filesystem-base.php';
-			require ABSPATH . '/wp-admin/includes/class-wp-filesystem-direct.php';
-		}
-		$fs = new \WP_Filesystem_Direct( null );
-		$fs->put_contents( $file, $file_content );
+		$wp_filesystem->put_contents( $file, $file_content );
 	}
 
 	/**
@@ -92,6 +90,7 @@ class File_Directory {
 		} else {
 			$url = $file;
 		}
+
 		$result = wp_remote_get( $url );
 		$status = wp_remote_retrieve_response_code( $result );
 		Debug::log(
@@ -104,7 +103,7 @@ class File_Directory {
 			2
 		);
 
-		if ( 200 !== $status ) {
+		if ( ! empty( $status ) && 200 !== $status ) {
 			return true;
 		}
 
