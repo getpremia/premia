@@ -237,6 +237,7 @@ class Woocommerce_License_Manager_Helper {
 
 						if ( 'deactivate' === $action ) {
 							$deactivate = self::deactivate(
+								true,
 								array(
 									'license_key' => $license_key,
 									'site_url'    => $site_url,
@@ -277,18 +278,22 @@ class Woocommerce_License_Manager_Helper {
 	/**
 	 * Deactivate the license
 	 *
+	 * @param bool  $status Current status.
 	 * @param array $license_info An array with license information.
 	 */
-	public static function deactivate( $license_info ) {
-		$license = lmfwc_get_license( $license_info['license_key'] );
-		if ( ! $license ) {
-			return false;
+	public static function deactivate( $status, $license_info ) {
+		if ( is_array( $license_info ) && isset( $license_info['license_key'] ) ) {
+			$license = lmfwc_get_license( $license_info['license_key'] );
+			if ( ! $license ) {
+				return false;
+			}
+			if ( $license->getTimesActivated() > 0 ) {
+				lmfwc_deactivate_license( $license->getDecryptedLicenseKey() );
+			}
+			lmfwc_delete_license_meta( $license->getId(), 'installations', $license_info['site_url'] );
+			return true;
 		}
-		if ( $license->getTimesActivated() > 0 ) {
-			lmfwc_deactivate_license( $license->getDecryptedLicenseKey() );
-		}
-		lmfwc_delete_license_meta( $license->getId(), 'installations', $license_info['site_url'] );
-		return true;
+		return false;
 	}
 
 	/**

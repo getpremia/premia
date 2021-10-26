@@ -378,7 +378,7 @@ class REST_Endpoints {
 		switch ( $action ) {
 			case 'deactivate':
 				Debug::log( 'Deactivate license', $license_info );
-				$result = Licenses::deactivate( $license_info );
+				$result = Licenses::deactivate( true, $license_info );
 				if ( ! $result ) {
 					Debug::log( 'Failed to deactivate license', $license_info );
 					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );

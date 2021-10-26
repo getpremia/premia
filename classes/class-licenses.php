@@ -246,7 +246,7 @@ class Licenses {
 	public static function add_site( $license_key, $site_url ) {
 		Debug::log( 'Add site: ' . $site_url );
 		$post = self::get_license_by_license_key( $license_key );
-		if ( null !== $post ) {
+		if ( null !== $post && is_a( $post, 'WP_Post' ) ) {
 			$sites = get_post_meta( $post->ID, 'installations', true );
 			if ( ! is_array( $sites ) ) {
 				$sites = array();
@@ -267,7 +267,7 @@ class Licenses {
 	public static function remove_site( $license_key, $site_url ) {
 		Debug::log( 'Remove site: ' . $site_url );
 		$post = self::get_license_by_license_key( $license_key );
-		if ( null !== $post ) {
+		if ( null !== $post && is_a( $post, 'WP_Post' ) ) {
 			$sites = get_post_meta( $post->ID, 'installations', true );
 			if ( is_array( $sites ) && in_array( $site_url, $sites, true ) ) {
 				$sites = array_filter(
@@ -460,9 +460,11 @@ class Licenses {
 	 */
 	public static function license_has_access( $license_info ) {
 		$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
-		$name        = get_post_field( 'post_name', $linked_post );
-		if ( ( isset( $license_info['post_id'] ) && $license_info['post_id'] !== $linked_post ) || $license_info['plugin'] !== $name ) {
-			return false;
+		if ( 0 !== $linked_post ) {
+			$name = get_post_field( 'post_name', $linked_post );
+			if ( ( isset( $license_info['post_id'] ) && $license_info['post_id'] !== $linked_post ) || $license_info['plugin'] !== $name ) {
+				return false;
+			}
 		}
 		return true;
 	}
@@ -518,7 +520,7 @@ class Licenses {
 		if ( isset( $license_info['license_key'] ) ) {
 			$license = self::get_license_by_license_key( $license_info['license_key'] );
 
-			if ( ! is_wp_error( $license ) ) {
+			if ( ! is_wp_error( $license ) && is_a( $license, 'WP_Post' ) ) {
 				$expiry_timestamp = get_post_meta( $license->ID, '_premia_expiry_date', true );
 
 				if ( ! empty( $expiry_timestamp ) ) {
