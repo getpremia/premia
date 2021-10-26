@@ -220,6 +220,24 @@ class Licenses {
 	}
 
 	/**
+	 * Check site
+	 *
+	 * @param string $license_key The license key.
+	 * @param string $site_url The site URL.
+	 */
+	public static function check_site( $license_key, $site_url ) {
+		Debug::log( 'Check site: ' . $site_url );
+		$post = self::get_license_by_license_key( $license_key );
+		if ( null !== $post ) {
+			$sites = get_post_meta( $post->ID, 'installations', true );
+			if ( is_array( $sites ) && in_array( $site_url, $sites, true ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Add a site to a license.
 	 *
 	 * @param string $license_key The license key.
@@ -296,6 +314,12 @@ class Licenses {
 	 * @return bool The result.
 	 */
 	public static function activate( $license_info ) {
+
+		// Check for status.
+		if ( isset( $license_info['action'] ) && 'status' === $license_info['action'] ) {
+			return self::check_site( $license_info['license_key'], $license_info['site_url'] );
+		}
+
 		$validate = self::validate_license_key( $license_info );
 		if ( $validate ) {
 			self::add_site( $license_info['license_key'], $license_info['site_url'] );
