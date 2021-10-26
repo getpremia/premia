@@ -69,6 +69,7 @@ class Woocommerce_Helper {
 			add_action( 'woocommerce_subscription_status_cancelled', array( $this, 'subscription_paused' ) );
 			add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( $this, 'format_license_meta' ), 10 );
 			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'add_licenses' ) );
+			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'manage_installs' ) );
 		}
 	}
 
@@ -413,6 +414,85 @@ class Woocommerce_Helper {
 				echo '</table>';
 			} else {
 				echo '<p>' . esc_html__( 'Login to access your licenses.', 'premia' ) . '</p>';
+			}
+		}
+	}
+
+	/**
+	 * Manage installs
+	 *
+	 * @param object $order a WC_Order object.
+	 */
+	public function manage_installs( $order ) {
+		if ( isset( $_GET['_wpnonce'] ) ) {
+			$nonce = sanitize_key( $_GET['_wpnonce'] );
+			if ( wp_verify_nonce( $nonce ) ) {
+
+				if ( isset( $_GET['site_url'] ) && isset( $_GET['action'] ) && isset( $_GET['license_key'] ) ) {
+					if ( ! empty( $_GET['site_url'] ) && ! empty( $_GET['action'] ) && ! empty( $_GET['license_key'] ) ) {
+						$action      = sanitize_text_field( wp_unslash( $_GET['action'] ) );
+						$site_url    = sanitize_text_field( wp_unslash( $_GET['site_url'] ) );
+						$license_key = sanitize_text_field( wp_unslash( $_GET['license_key'] ) );
+
+						if ( 'deactivate' === $action ) {
+							$deactivate = self::deactivate(
+								array(
+									'license_key' => $license_key,
+									'site_url'    => $site_url,
+								)
+							);
+						}
+					}
+				}
+			}
+		}
+
+		$licenses = array();
+
+		foreach ( $order->get_items()  as $item ) {
+			$license_id = $item->get_meta( '_premia_linked_license' );
+			if ( ! empty( $license_id ) ) {
+				$license = get_post( $license_id );
+				if ( 'publish' === $license->post_status ) {
+					if ( is_a( $license, 'WP_Post' ) && 'publish' === $license->post_status ) {
+						$post_id    = get_post_meta( $license_id, '_premia_linked_post_id', true );
+						$post       = get_post( $post_id );
+						$licenses[] = array(
+							'license_key' => $license->post_title,
+							'name'        => $post->post_title,
+							'post_id'     => $post->ID,
+						);
+					}
+				}
+			}
+		}
+
+		$licenses = apply_filters( 'premia_order_licenses', $licenses, $order );
+
+		foreach ( $licenses as $data ) {
+			// translators: %s is the license key.
+			echo '<h2>' . sprintf( esc_html__( 'Manage installations for %s', 'premia' ), esc_html( $data['license_key'] ) ) . '</h2>';
+			$installs = get_post_meta( $data['post_id'], 'installations', true );
+			if ( is_array( $installs ) && ! empty( $installs ) ) {
+				echo '<table>';
+				echo '<tr><th>' . esc_html__( 'Site', 'premia' ) . '</th><th>' . esc_html__( 'Action', 'premia' ) . '</th></tr>';
+				foreach ( $installs as $site ) {
+					echo '<tr>';
+					echo '<td>' . esc_html( $site ) . '</td>';
+					$deactivate_link = get_permalink( get_option( 'woocommerce_myaccount_page_id' ) ) . 'view-license-keys';
+					$deactivate_link = add_query_arg(
+						array(
+							'site_url'    => esc_url( $site ),
+							'action'      => 'deactivate',
+							'license_key' => $license->getDecryptedLicenseKey(),
+						)
+					);
+					echo '<td><a href="' . esc_url( wp_nonce_url( $deactivate_link ) ) . '" class="button" data-site="' . esc_attr( $site ) . '">Deactivate</td>';
+					echo '</tr>';
+				}
+				echo '</table>';
+			} else {
+				echo '<p>' . esc_html__( 'Active installations will show up here.', 'premia' ) . '</p>';
 			}
 		}
 	}
