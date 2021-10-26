@@ -41,8 +41,10 @@ class Debug {
 					break;
 			}
 			if ( true === $show ) {
+				//phpcs:ignore
 				error_log( '--[Premia Log] | ' . $name );
 				if ( ! empty( $info ) ) {
+					//phpcs:ignore
 					error_log( print_r( $info, true ) );
 				}
 			}

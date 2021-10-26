@@ -69,6 +69,12 @@ class Custom_Fields {
 					'type'    => 'link_list',
 					'visible' => true,
 				),
+				array(
+					'name'    => '_premia_expiry_date',
+					'label'   => __( 'Expires on', 'premia' ),
+					'type'    => 'static_text',
+					'visible' => true,
+				),
 			)
 		);
 
@@ -147,7 +153,7 @@ class Custom_Fields {
 						echo '</label>';
 						break;
 					case 'select':
-						echo '<label for="' . esc_attr( $field['name'] ) . '">' . esc_html( $field['label'] ) . '</label><br/>';
+						echo '<label for="' . esc_attr( $field['name'] ) . '"><strong>' . esc_html( $field['label'] ) . '</strong></label><br/>';
 						$choices = get_posts(
 							array(
 								'post_type'   => apply_filters( 'premia_supported_post_types', array( 'post', 'page' ) ),
@@ -163,7 +169,7 @@ class Custom_Fields {
 						echo '<div><i>' . esc_html( $field['desc'] ) . '</i></div>';
 						break;
 					case 'post_link':
-						echo '<label for="' . esc_attr( $field['name'] ) . '">' . esc_html( $field['label'] ) . '</label><br/>';
+						echo '<label for="' . esc_attr( $field['name'] ) . '"><strong>' . esc_html( $field['label'] ) . '</strong></label><br/>';
 						$value = get_post_meta( $post->ID, $field['name'], true );
 						if ( ! empty( $value ) ) {
 							$post = get_post( $value );
@@ -173,7 +179,7 @@ class Custom_Fields {
 						}
 						break;
 					case 'link_list':
-						echo '<label for="' . esc_attr( $field['name'] ) . '">' . esc_html( $field['label'] ) . '</label><br/>';
+						echo '<label for="' . esc_attr( $field['name'] ) . '"><strong>' . esc_html( $field['label'] ) . '</strong></label><br/>';
 						$value = get_post_meta( $post->ID, $field['name'], true );
 						if ( is_array( $value ) && ! empty( $value ) ) {
 							echo '<ul>';
@@ -181,6 +187,15 @@ class Custom_Fields {
 								echo '<li><a href="' . esc_html( $site ) . '">' . esc_html( $site ) . '</a></li>';
 							}
 							echo '</ul>';
+						}
+						break;
+					case 'static_text':
+						echo '<label for="' . esc_attr( $field['name'] ) . '"><strong>' . esc_html( $field['label'] ) . '</strong></label><br/>';
+						$value = get_post_meta( $post->ID, $field['name'], true );
+						if ( ! empty( $value ) ) {
+							$date = new \Datetime();
+							$date->setTimestamp( $value );
+							echo esc_html( $date->format( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) );
 						}
 						break;
 					case 'nonce':

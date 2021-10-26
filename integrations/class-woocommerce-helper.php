@@ -55,6 +55,7 @@ class Woocommerce_Helper {
 			add_filter( 'premia_customize_post_fields', array( $this, 'add_wc_fields' ) );
 			add_filter( 'premia_supported_post_types', array( $this, 'add_product_support' ) );
 			add_filter( 'premia_customize_update_info', array( $this, 'add_product_information' ), 10, 3 );
+			add_filter( 'premia_update_field', array( $this, 'set_subscription_to_zero' ), 10, 3 );
 		}
 
 		if ( ! Woocommerce_License_Manager_Helper::is_license_manager_active() ) {
@@ -62,8 +63,13 @@ class Woocommerce_Helper {
 			add_action( 'woocommerce_order_status_completed', array( $this, 'maybe_create_licences' ) );
 			add_action( 'woocommerce_order_status_cancelled', array( $this, 'maybe_deactivate_licences' ) );
 			add_action( 'woocommerce_order_refunded', array( $this, 'maybe_deactivate_licences' ) );
+			add_action( 'woocommerce_subscription_status_expired', array( $this, 'subscription_paused' ) );
+			add_action( 'woocommerce_subscription_status_on-hold', array( $this, 'subscription_paused' ) );
+			add_action( 'woocommerce_subscription_status_active', array( $this, 'subscription_activated' ) );
+			add_action( 'woocommerce_subscription_status_cancelled', array( $this, 'subscription_paused' ) );
 			add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( $this, 'format_license_meta' ), 10 );
 			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'add_licenses' ) );
+			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'manage_installs' ) );
 		}
 	}
 
@@ -131,17 +137,26 @@ class Woocommerce_Helper {
 	 */
 	public function add_wc_fields( $fields ) {
 		if ( 'product' === get_post_type() ) {
-			$fields = array_merge(
+			$extra_fields = array(
 				array(
-					array(
-						'name'    => '_updater_enable_license',
-						'type'    => 'checkbox',
-						'label'   => __( 'Enable licensing', 'premia' ),
-						'desc'    => __( 'Enabling this option will generate licenses for each purchase of this item.', 'premia' ),
-						'visible' => true,
-					),
+					'name'    => '_updater_enable_license',
+					'type'    => 'checkbox',
+					'label'   => __( 'Enable licensing', 'premia' ),
+					'desc'    => __( 'Enabling this option will generate licenses for each purchase of this item.', 'premia' ),
+					'visible' => true,
 				),
-				$fields
+				array(
+					'name'    => '_updater_license_validity',
+					'type'    => 'number',
+					'label'   => __( 'Valid for', 'premia' ),
+					'desc'    => __( 'The amount of days the product license is valid for. (defaults to 365, enter 0 for unlimited, unused in subscriptions)', 'premia' ),
+					'visible' => true,
+				),
+			);
+
+			$fields = array_merge(
+				$extra_fields,
+				$fields,
 			);
 		}
 		return $fields;
@@ -194,6 +209,7 @@ class Woocommerce_Helper {
 					);
 					break;
 				case 'text':
+				case 'number':
 					woocommerce_wp_text_input(
 						array(
 							'id'          => $field['name'],
@@ -272,6 +288,14 @@ class Woocommerce_Helper {
 
 			$file_name = $linked_post->post_name . '.zip';
 
+			$expiry_date = get_post_meta( $post->ID, '_premia_expiry_date', true );
+
+			if ( empty( $expiry_date ) ) {
+				$access_expires = null;
+			} else {
+				$access_expires = date( 'Y-m-d', $expiry_date ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
+			}
+
 			$download_url = get_rest_url() . 'premia/v1/download_update';
 			$download_url = add_query_arg( $license_info, $download_url );
 			$downloads[]  = array(
@@ -283,7 +307,7 @@ class Woocommerce_Helper {
 				'download_name'       => $file_name,
 				'order_id'            => $linked_order_id,
 				'downloads_remaining' => '',
-				'access_expires'      => 'yes',
+				'access_expires'      => $access_expires,
 				'file'                => array(
 					'name' => $file_name,
 					'file' => $download_url,
@@ -297,12 +321,11 @@ class Woocommerce_Helper {
 	}
 
 	/**
-	 * Add the downloads on the thank you page.
+	 * Add the downloads on the thank you and my account page.
 	 *
 	 * @param object $order a WC_Order object.
 	 */
 	public function add_downloads( $order ) {
-		echo '<header><h2>' . esc_html__( 'Downloads', 'premia' ) . '</h2></header>';
 
 		$downloads = array();
 
@@ -334,28 +357,28 @@ class Woocommerce_Helper {
 
 		$downloads = apply_filters( 'premia_order_downloads', $downloads, $order );
 
-		if ( is_user_logged_in() ) {
+		if ( ! empty( $downloads ) ) {
+			echo '<header><h2>' . esc_html__( 'Downloads', 'premia' ) . '</h2></header>';
 
-			if ( ! empty( $downloads ) ) {
-				echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '</p>';
-				foreach ( $downloads as $download ) {
-					echo '<p><a class="button" href="' . esc_html( $download['link'] ) . '">Download ' . esc_html( $download['name'] ) . '</a></p>';
+			if ( is_user_logged_in() ) {
+				if ( ! empty( $downloads ) ) {
+					echo '<p>' . esc_html__( 'Get started by downloading your files below!', 'premia' ) . '</p>';
+					foreach ( $downloads as $download ) {
+						echo '<p><a class="button" href="' . esc_html( $download['link'] ) . '">Download ' . esc_html( $download['name'] ) . '</a></p>';
+					}
+				} else {
+					echo '<p>' . esc_html__( 'Login to access your downloads.', 'premia' ) . '</p>';
 				}
-			} else {
-				echo '<p>' . esc_html__( 'Downloads will show here after your purchase is confirmed.', 'premia' ) . '</p>';
 			}
-		} else {
-			echo '<p>' . esc_html__( 'Login to access your downloads.', 'premia' ) . '</p>';
 		}
 	}
 
 	/**
-	 * Add the licenses on the thank you page.
+	 * Add the licenses on the thank you and my account page.
 	 *
 	 * @param object $order a WC_Order object.
 	 */
 	public function add_licenses( $order ) {
-		echo '<header><h2>' . esc_html__( 'Licenses', 'premia' ) . '</h2></header>';
 
 		$licenses = array();
 
@@ -380,14 +403,98 @@ class Woocommerce_Helper {
 		$licenses = apply_filters( 'premia_order_licenses', $licenses, $order );
 
 		if ( ! empty( $licenses ) ) {
-			echo '<table>';
-			echo '<tr><th>' . esc_html__( 'Name', 'premia' ) . '</th><th>' . esc_html__( 'License', 'premia' ) . '</th></tr>';
-			foreach ( $licenses as $license ) {
-				echo '<tr><td><strong>' . esc_html( $license['name'] ) . '</strong></td><td><code>' . esc_html( $license['license_key'] ) . '</code></td></tr>';
+
+			if ( is_user_logged_in() ) {
+				echo '<header><h2>' . esc_html__( 'Licenses', 'premia' ) . '</h2></header>';
+				echo '<table>';
+				echo '<tr><th>' . esc_html__( 'Name', 'premia' ) . '</th><th>' . esc_html__( 'License', 'premia' ) . '</th></tr>';
+				foreach ( $licenses as $license ) {
+					echo '<tr><td><strong>' . esc_html( $license['name'] ) . '</strong></td><td><code>' . esc_html( $license['license_key'] ) . '</code></td></tr>';
+				}
+				echo '</table>';
+			} else {
+				echo '<p>' . esc_html__( 'Login to access your licenses.', 'premia' ) . '</p>';
 			}
-			echo '</table>';
-		} else {
-			echo '<p>' . esc_html__( 'Licenses will show here after your purchase is confirmed.', 'premia' ) . '</p>';
+		}
+	}
+
+	/**
+	 * Manage installs
+	 *
+	 * @param object $order a WC_Order object.
+	 */
+	public function manage_installs( $order ) {
+		if ( isset( $_GET['_wpnonce'] ) ) {
+			$nonce = sanitize_key( $_GET['_wpnonce'] );
+			if ( wp_verify_nonce( $nonce ) ) {
+
+				if ( isset( $_GET['site_url'] ) && isset( $_GET['action'] ) && isset( $_GET['license_key'] ) ) {
+					if ( ! empty( $_GET['site_url'] ) && ! empty( $_GET['action'] ) && ! empty( $_GET['license_key'] ) ) {
+						$action      = sanitize_text_field( wp_unslash( $_GET['action'] ) );
+						$site_url    = sanitize_text_field( wp_unslash( $_GET['site_url'] ) );
+						$license_key = sanitize_text_field( wp_unslash( $_GET['license_key'] ) );
+
+						if ( 'deactivate' === $action ) {
+							$deactivate = Licenses::deactivate(
+								array(
+									'license_key' => $license_key,
+									'site_url'    => $site_url,
+								)
+							);
+						}
+					}
+				}
+			}
+		}
+
+		$licenses = array();
+
+		foreach ( $order->get_items()  as $item ) {
+			$license_id = $item->get_meta( '_premia_linked_license' );
+			if ( ! empty( $license_id ) ) {
+				$license = get_post( $license_id );
+				if ( 'publish' === $license->post_status ) {
+					if ( is_a( $license, 'WP_Post' ) && 'publish' === $license->post_status ) {
+						$post_id    = get_post_meta( $license_id, '_premia_linked_post_id', true );
+						$post       = get_post( $post_id );
+						$licenses[] = array(
+							'license_key' => $license->post_title,
+							'name'        => $post->post_title,
+							'post_id'     => $post->ID,
+							'license_id'  => $license_id,
+						);
+					}
+				}
+			}
+		}
+
+		$licenses = apply_filters( 'premia_order_licenses', $licenses, $order );
+
+		foreach ( $licenses as $data ) {
+			// translators: %s is the license key.
+			echo '<h2>' . sprintf( esc_html__( 'Manage installations for %s', 'premia' ), esc_html( $data['license_key'] ) ) . '</h2>';
+			$installs = get_post_meta( $data['license_id'], 'installations', true );
+			if ( is_array( $installs ) && ! empty( $installs ) ) {
+				echo '<table>';
+				echo '<tr><th>' . esc_html__( 'Site', 'premia' ) . '</th><th>' . esc_html__( 'Action', 'premia' ) . '</th></tr>';
+				foreach ( $installs as $site ) {
+					echo '<tr>';
+					echo '<td>' . esc_html( $site ) . '</td>';
+					$deactivate_link = get_permalink( get_option( 'woocommerce_myaccount_page_id' ) ) . 'view-license-keys';
+					$deactivate_link = add_query_arg(
+						array(
+							'site_url'    => esc_url( $site ),
+							'action'      => 'deactivate',
+							'license_key' => $data['license_key'],
+						)
+					);
+					echo '<td><a href="' . esc_url( wp_nonce_url( $deactivate_link ) ) . '" class="button" data-site="' . esc_attr( $site ) . '">Deactivate</td>';
+					echo '</tr>';
+				}
+				echo '</table>';
+			} else {
+				echo '<p>' . esc_html__( 'Active installations will show up here.', 'premia' ) . '</p>';
+			}
 		}
 	}
 
@@ -414,12 +521,11 @@ class Woocommerce_Helper {
 	 * @return void
 	 */
 	public function maybe_create_licences( $order_id ) {
-		Debug::log( 'Maybe create license: ', $order_id );
+		Debug::log( "Maybe create license for #{$order_id}" );
 		$order           = wc_get_order( $order_id );
 		$license_created = $order->get_meta( '_license_created' );
-		Debug::log( 'License created?: ', $license_created );
 		if ( empty( $license_created ) || false === $license_created ) {
-			Debug::log( 'Create license: ', $order_id );
+			Debug::log( 'Create license for order #' . $order_id );
 			foreach ( $order->get_items() as $item_id => $item ) {
 				$product_id      = $item->get_product_id();
 				$license_enabled = get_post_meta( $product_id, '_updater_enable_license', true );
@@ -450,5 +556,70 @@ class Woocommerce_Helper {
 				wp_trash_post( $license_id );
 			}
 		}
+	}
+
+	/**
+	 * Maybe (re-)activate license.
+	 *
+	 * @param int $order_id The Order ID.
+	 * @return void
+	 */
+	public function maybe_activate_licences( $order_id ) {
+		Debug::log( 'Maybe (re-)activate license: ', $order_id );
+		$order = wc_get_order( $order_id );
+		foreach ( $order->get_items() as $item ) {
+			$license_id = $item->get_meta( '_premia_linked_license' );
+			if ( ! empty( $license_id ) ) {
+				Debug::log( 'Untrash license: ', $license_id );
+				wp_untrash_post( $license_id );
+				wp_publish_post( $license_id );
+			}
+		}
+	}
+
+	/**
+	 * Pause a license.
+	 *
+	 * @param object $subscription a WC_Subscription object.
+	 */
+	public function subscription_paused( $subscription ) {
+		$orders = $subscription->get_related_orders();
+		foreach ( $orders as $order_id ) {
+			$this->maybe_deactivate_licences( $order_id );
+		}
+	}
+
+	/**
+	 * (Re-)activate licenses.
+	 *
+	 * @param object $subscription a WC_Subscription object.
+	 */
+	public function subscription_activated( $subscription ) {
+		$orders = $subscription->get_related_orders();
+		foreach ( $orders as $order_id ) {
+			$this->maybe_activate_licences( $order_id );
+		}
+	}
+
+	/**
+	 * Set license validity for subscriptions to zero.
+	 *
+	 * @param int   $value current value.
+	 * @param array $field Field parameters.
+	 * @param int   $post_id The post ID.
+	 * @return int The new value
+	 */
+	public function set_subscription_to_zero( $value, $field, $post_id ) {
+		if ( '_updater_license_validity' === $field['name'] ) {
+			if ( isset( $_POST['woocommerce_meta_nonce'] ) && wp_verify_nonce( sanitize_key( $_POST['woocommerce_meta_nonce'] ), 'woocommerce_save_data' ) ) {
+				if ( isset( $_POST['product-type'] ) ) {
+					$type = sanitize_text_field( wp_unslash( $_POST['product-type'] ) );
+					if ( in_array( $type, array( 'subscription', 'variable-subscription' ), true ) ) {
+						$value = 0;
+					}
+				}
+			}
+		}
+		return $value;
 	}
 }

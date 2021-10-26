@@ -135,6 +135,10 @@ class REST_Endpoints {
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
 		}
 
+		if ( Licenses::license_is_expired( $license_info ) ) {
+			return new \WP_REST_Response( array( 'error' => 'License is expired.' ), 400 );
+		}
+
 		// Latest release information.
 		$latest_release      = get_post_meta( $post->ID, '_premia_latest_release_version', true );
 		$latest_release_path = get_post_meta( $post->ID, '_premia_latest_release_path', true );

@@ -62,6 +62,7 @@ class Licenses {
 	 */
 	public function manage_columns( $columns ) {
 		$columns['post']     = __( 'Linked post', 'premia' );
+		$columns['expires']  = __( 'Expires on', 'premia' );
 		$columns['customer'] = __( 'Customer', 'premia' );
 		return $columns;
 	}
@@ -82,6 +83,15 @@ class Licenses {
 				$customer  = get_post_field( 'post_author', $post_id );
 				$user_data = get_userdata( $customer );
 				echo '<a href="' . esc_url( get_edit_user_link( $customer ) ) . '">' . esc_html( $user_data->data->display_name ) . '</a>';
+				break;
+			case 'expires':
+				$datetime = get_post_meta( $post_id, '_premia_expiry_date', true );
+				if ( ! empty( $datetime ) ) {
+					$date = new \Datetime();
+					$date->setTimestamp( $datetime );
+					echo esc_html( $date->format( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) );
+				}
+				break;
 		}
 	}
 
@@ -106,6 +116,7 @@ class Licenses {
 				'supports'           => array( 'title' ),
 				'taxonomies'         => array(),
 				'show_in_rest'       => false,
+				//phpcs:ignore
 				'menu_icon'          => 'data:image/svg+xml;base64,' . base64_encode( '<svg width="34" height="36" viewBox="0 0 34 36" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.0914 16.4397L1.54909 17.2336L15.0458 2.94295L9.0914 16.4397Z"/><path d="M10.4205 16.4L16.981 1.52961L23.1041 16.4H10.4205Z"/><path d="M24.4178 16.4388L18.7884 2.76746L32.4597 17.243L24.4178 16.4388Z"/><path d="M9.10933 17.6444L15.2991 33.3252L1.26894 18.4697L9.10933 17.6444Z"/><path d="M23.1395 17.6L16.9807 34.3169L10.3819 17.6H23.1395Z"/><path d="M24.4024 17.6432L32.7256 18.4755L18.5763 33.4572L24.4024 17.6432Z"/></svg>' ),
 			)
 		);
@@ -175,27 +186,55 @@ class Licenses {
 	 * @return int The licence post ID.
 	 */
 	public static function create_license( $product_id, $user_id ) {
-		Debug::log(
-			'Create license for: ',
-			array(
-				'product_id' => $product_id,
-				'user_id'    => $user_id,
-			)
-		);
-		$license_id = wp_insert_post(
-			array(
-				'post_title'  => self::generate_license(),
-				'post_status' => 'publish',
-				'post_type'   => 'prem_license',
-				'post_author' => $user_id,
-			)
+		Debug::log( "Create license (product #{$product_id}) for user #{$user_id}" );
+
+		$license_args = array(
+			'post_title'  => self::generate_license(),
+			'post_status' => 'publish',
+			'post_type'   => 'prem_license',
+			'post_author' => $user_id,
+			'meta_input'  => array(
+				'_premia_linked_post_id' => $product_id,
+			),
 		);
 
+		$license_days = intval( get_post_meta( $product_id, '_updater_license_validity', true ) );
+
+		// Only add meta when license days is above 0.
+		if ( 0 !== $license_days && $license_days > 0 ) {
+			$today = new \Datetime();
+			$today->setTimestamp( time() );
+			$today->modify( "+{$license_days}days" );
+			$license_args['meta_input']['_premia_expiry_date'] = $today->getTimestamp();
+		}
+
+		$license_id = wp_insert_post( $license_args );
+
 		if ( ! is_wp_error( $license_id ) ) {
-			update_post_meta( $license_id, '_premia_linked_post_id', $product_id );
+			Debug::log( "Succesfuly created license #{$license_id} " );
+		} else {
+			Debug::log( "An error occured while creating license #{$license_id}." );
 		}
 
 		return $license_id;
+	}
+
+	/**
+	 * Check site
+	 *
+	 * @param string $license_key The license key.
+	 * @param string $site_url The site URL.
+	 */
+	public static function check_site( $license_key, $site_url ) {
+		Debug::log( 'Check site: ' . $site_url );
+		$post = self::get_license_by_license_key( $license_key );
+		if ( null !== $post ) {
+			$sites = get_post_meta( $post->ID, 'installations', true );
+			if ( is_array( $sites ) && in_array( $site_url, $sites, true ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -275,6 +314,12 @@ class Licenses {
 	 * @return bool The result.
 	 */
 	public static function activate( $license_info ) {
+
+		// Check for status.
+		if ( isset( $license_info['action'] ) && 'status' === $license_info['action'] ) {
+			return self::check_site( $license_info['license_key'], $license_info['site_url'] );
+		}
+
 		$validate = self::validate_license_key( $license_info );
 		if ( $validate ) {
 			self::add_site( $license_info['license_key'], $license_info['site_url'] );
@@ -355,6 +400,11 @@ class Licenses {
 			return false;
 		}
 
+		if ( self::license_is_expired( $license_info ) ) {
+			$output['name'] = 'License has expired.';
+			return false;
+		}
+
 		$sites = self::get_installations( $license_info['license_key'] );
 
 		if ( ! is_array( $sites ) ) {
@@ -410,5 +460,34 @@ class Licenses {
 			$sites = get_post_meta( $license->ID, 'installations', true );
 		}
 		return apply_filters( 'premia_get_installations', $sites, $license_key );
+	}
+
+	/**
+	 * Check if license is expired.
+	 *
+	 * @param array $license_info An array of license information.
+	 * @return bool The result.
+	 */
+	public static function license_is_expired( $license_info ) {
+		$status = false;
+
+		Debug::log( 'Check if license is expired.' );
+
+		if ( isset( $license_info['license_key'] ) ) {
+			$license = self::get_license_by_license_key( $license_info['license_key'] );
+
+			if ( ! is_wp_error( $license ) ) {
+				$expiry_timestamp = get_post_meta( $license->ID, '_premia_expiry_date', true );
+
+				if ( ! empty( $expiry_timestamp ) ) {
+					if ( $expiry_timestamp < time() ) {
+						$status = true;
+						Debug::log( 'License is expired.', $license_info );
+					}
+				}
+			}
+		}
+
+		return $status;
 	}
 }
