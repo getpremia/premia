@@ -104,7 +104,7 @@ class REST_Endpoints {
 
 		$post = false;
 
-		// If the user is not logged in and we can't validate the license_info, bail.
+		// Check if requests comes from user, or from WordPress dashboard.
 		if ( ! $this->validate_request( $license_info ) ) {
 			Debug::log( 'Validate failed.', $license_info );
 			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
@@ -132,9 +132,10 @@ class REST_Endpoints {
 		if ( is_wp_error( $post ) || null === $post || false === $post ) {
 			Debug::log( 'Error on $post.', $post );
 			Debug::log( 'License info:', $license_info );
-			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
+			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request (missing object information).' ), 400 );
 		}
 
+		// Check if license is expired.
 		if ( Licenses::license_is_expired( $license_info ) ) {
 			return new \WP_REST_Response( array( 'error' => 'License is expired.' ), 400 );
 		}
@@ -244,13 +245,14 @@ class REST_Endpoints {
 	 */
 	public function check_updates( $request ) {
 
+		$post_id      = false;
 		$license_info = $request->get_params();
 
 		Debug::log( 'Check updates', $license_info );
 
 		$output = array(
 			'name'         => '',
-			'version'      => '0.1',
+			'version'      => '',
 			'download_url' => '',
 			'sections'     => array(
 				'description' => '',
@@ -284,7 +286,6 @@ class REST_Endpoints {
 			if ( ! is_array( $posts ) || empty( $posts ) ) {
 				$output['name'] = 'Plugin cannot be found.';
 				Debug::log( 'No results for query. ', $posts );
-				$post_id = false;
 			} else {
 				$post           = reset( $posts );
 				$post_id        = $post->ID;
