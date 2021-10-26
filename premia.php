@@ -10,7 +10,7 @@
  * Plugin Name:       Premia
  * Plugin URI:        https://mklasen.com
  * Description:       Premia
- * Version:           1.0
+ * Version:           1.1
  * Requires at least: 5.2
  * Requires PHP:      7.2
  * Author:            Marinus Klasen
@@ -24,7 +24,7 @@ require plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 /**
  * Start the plugin
  *
- * @since    1.5.0
+ * @since    1.0
  */
 function run_premia() {
 	new Github();
