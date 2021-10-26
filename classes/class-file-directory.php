@@ -31,7 +31,6 @@ class File_Directory {
 		WP_Filesystem();
 
 		if ( ! is_dir( $base_dir . 'releases' ) ) {
-			error_log( 'createdir: ' . $base_dir . 'releases/' );
 			$wp_filesystem->mkdir( $base_dir . 'releases/' );
 		}
 
