@@ -324,7 +324,10 @@ class Licenses {
 
 		$validate = self::validate_license_key( $license_info );
 		if ( $validate ) {
-			self::add_site( $license_info['license_key'], $license_info['site_url'] );
+			if ( ! empty( $license_info['site_url'] ) ) {
+				// Check if license key belongs to post.
+				self::add_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
+			}
 		}
 		return apply_filters( 'premia_activate_license', $validate, $license_info );
 	}
@@ -336,8 +339,21 @@ class Licenses {
 	 * @return bool The result.
 	 */
 	public static function deactivate( $license_info ) {
-		self::remove_site( $license_info['license_key'], $license_info['site_url'] );
-		return apply_filters( 'premia_deactivate_license', true, $license_info );
+		$status = false;
+		if ( isset( $license_info['license_key'] ) && isset( $license_info['site_url'] ) ) {
+			if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
+				$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
+				if ( is_int( $linked_post ) ) {
+					$license_info['post_id'] = $linked_post;
+				}
+			}
+
+			if ( self::license_has_access( $license_info ) ) {
+				$status = true;
+				self::remove_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
+			}
+		}
+		return apply_filters( 'premia_deactivate_license', $status, $license_info );
 	}
 
 	/**
@@ -365,6 +381,10 @@ class Licenses {
 			if ( is_int( $linked_post ) && 0 !== $linked_post ) {
 				$validate = true;
 			}
+		}
+
+		if ( ! self::license_has_access( $license_info ) ) {
+			$validate = false;
 		}
 
 		Debug::log( 'Validation result: ', $validate );
@@ -433,14 +453,15 @@ class Licenses {
 	}
 
 	/**
-	 * Does the licese have access to the post?
+	 * Does the license have access to the post?
 	 *
 	 * @param array $license_info An array of license information.
 	 * @return bool The result.
 	 */
 	public static function license_has_access( $license_info ) {
 		$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
-		if ( $license_info['post_id'] !== $linked_post ) {
+		$name        = get_post_field( 'post_name', $linked_post );
+		if ( ( isset( $license_info['post_id'] ) && $license_info['post_id'] !== $linked_post ) || $license_info['plugin'] !== $name ) {
 			return false;
 		}
 		return true;

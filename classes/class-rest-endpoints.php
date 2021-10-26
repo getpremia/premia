@@ -112,7 +112,7 @@ class REST_Endpoints {
 
 		if ( isset( $license_info['post_id'] ) ) {
 			$post = get_post( intval( $license_info['post_id'] ) );
-		} else {
+		} elseif ( isset( $license_info['plugin'] ) && ! empty( $license_info['plugin'] ) ) {
 			// Get the post that contains information about this download.
 			$posts = get_posts(
 				array(
@@ -370,7 +370,7 @@ class REST_Endpoints {
 		$defaults = array(
 			'license_key' => '',
 			'site_url'    => '',
-			'action'      => '',
+			'action'      => $action,
 		);
 
 		$license_info = wp_parse_args( $license_info, $defaults );
@@ -382,6 +382,8 @@ class REST_Endpoints {
 				if ( ! $result ) {
 					Debug::log( 'Failed to deactivate license', $license_info );
 					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
+				} else {
+					return __( 'License deactivated!', 'premia' );
 				}
 				break;
 
@@ -391,6 +393,8 @@ class REST_Endpoints {
 				if ( ! $result ) {
 					Debug::log( 'Failed to activate license', $license_info );
 					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
+				} else {
+					return __( 'License activated!', 'premia' );
 				}
 				break;
 
