@@ -315,6 +315,8 @@ class Licenses {
 	 */
 	public static function activate( $license_info ) {
 
+		Debug::log( 'activate:', $license_info );
+
 		// Check for status.
 		if ( isset( $license_info['action'] ) && 'status' === $license_info['action'] ) {
 			return self::check_site( $license_info['license_key'], $license_info['site_url'] );
@@ -405,6 +407,11 @@ class Licenses {
 			return false;
 		}
 
+		// Check if license key belongs to post.
+		if ( ! self::license_has_access( $license_info ) ) {
+			return false;
+		}
+
 		$sites = self::get_installations( $license_info['license_key'] );
 
 		if ( ! is_array( $sites ) ) {
@@ -423,6 +430,20 @@ class Licenses {
 		Debug::log( 'Validation result: ', $validate );
 
 		return apply_filters( 'premia_validate_license', $validate, $license_info );
+	}
+
+	/**
+	 * Does the licese have access to the post?
+	 *
+	 * @param array $license_info An array of license information.
+	 * @return bool The result.
+	 */
+	public static function license_has_access( $license_info ) {
+		$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
+		if ( $license_info['post_id'] !== $linked_post ) {
+			return false;
+		}
+		return true;
 	}
 
 	/**
