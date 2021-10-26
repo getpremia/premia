@@ -168,7 +168,7 @@ class REST_Endpoints {
 
 		Debug::log( 'Github response: ', $body, 3 );
 
-		$base_dir    = apply_filters( 'premia_plugin_assets_download_path', plugin_dir_path( dirname( __FILE__ ) ) );
+		$base_dir    = trailingslashit( apply_filters( 'premia_plugin_assets_download_path', plugin_dir_path( dirname( __FILE__ ) ) ) );
 		$directories = File_Directory::prepare_directories( $base_dir, $post->post_name, $version );
 
 		// Set the download url.
@@ -280,8 +280,10 @@ class REST_Endpoints {
 			if ( ! is_array( $posts ) || empty( $posts ) ) {
 				$output['name'] = 'Plugin cannot be found.';
 				Debug::log( 'No results for query. ', $posts );
+				$post_id = false;
 			} else {
 				$post           = reset( $posts );
+				$post_id        = $post->ID;
 				$output['name'] = $post->post_title;
 
 				$github_data = Github::get_meta_data( $post->ID );
@@ -338,7 +340,7 @@ class REST_Endpoints {
 
 		Debug::log( 'Check updates answer: ', $output );
 
-		return apply_filters( 'premia_customize_update_info', $output, $license_info, $post->ID );
+		return apply_filters( 'premia_customize_update_info', $output, $license_info, $post_id );
 	}
 
 	/**
