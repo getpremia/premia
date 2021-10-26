@@ -73,7 +73,7 @@ class Github {
 	 * @param string $target The local path.
 	 */
 	public static function download_asset( $github_data, $path, $target ) {
-		Debug::log( 'Downloading asset from: ', $path, 2 );
+		Debug::log( 'Downloading asset from: ' . $path, 2 );
 		$zip = self::request( $github_data, $path, array(), 'zip' );
 
 		if ( is_wp_error( $zip ) ) {
@@ -86,14 +86,13 @@ class Github {
 
 		$file_path = $target . $zip_name;
 
-		if ( ! class_exists( 'WP_Filesystem_Direct' ) ) {
-			require ABSPATH . '/wp-admin/includes/class-wp-filesystem-base.php';
-			require ABSPATH . '/wp-admin/includes/class-wp-filesystem-direct.php';
-		}
-		$fs = new \WP_Filesystem_Direct( null );
+		global $wp_filesystem;
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		WP_Filesystem();
 
+		Debug::log( 'Saving file to: ' . $file_path, null, 2 );
 		// Save the zip file.
-		$fs->put_contents( $file_path, $zip['body'] );
+		$wp_filesystem->put_contents( $file_path, $zip['body'] );
 
 		return $file_path;
 	}
