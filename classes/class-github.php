@@ -57,11 +57,48 @@ class Github {
 	 */
 	public static function get_meta_data( $post_id ) {
 
-		$data = array();
+		$data = array(
+			'api_url'   => '',
+			'api_token' => '',
+		);
+
 		// Get Github information from post.
 		$data['api_url']   = get_post_meta( $post_id, '_updater_repo', true );
 		$data['api_token'] = get_post_meta( $post_id, '_updater_api_token', true );
 
+		return $data;
+	}
+
+	/**
+	 * Get release data
+	 *
+	 * @param int $post_id The post ID.
+	 * @return array of api information.
+	 */
+	public static function get_release_data( $github_data, $version ) {
+
+		$data = array(
+			'version'      => '',
+			'changelog'    => '',
+			'published_at' => '',
+			'id'           => '',
+		);
+
+		$request     = self::request( $github_data, ( 'latest' === $version ) ? '/releases/latest' : '/releases/tags/' . $version );
+		$latest_info = json_decode( wp_remote_retrieve_body( $request ) );
+		if ( ! is_wp_error( $request ) && wp_remote_retrieve_response_code( $request ) === 200 ) {
+			$parsedown = new \Parsedown();
+
+			$data['version']      = $latest_info->tag_name;
+			$data['changelog']    = preg_replace( '/<h\d.*?>(.*?)<\/h\d>/ims', '<h4>$1</h4>', $parsedown->text( $latest_info->body ) );
+			$data['published_at'] = $latest_info->published_at;
+			$data['id']           = $latest_info->id;
+			if ( empty( $data['changelog'] ) ) {
+				$data['changelog'] = '<p>This release contains version ' . $data['version'] . '.</p>';
+			}
+		} else {
+			Debug::log( 'Failed to get the latest version information. Did you set the right token?', $latest_info );
+		}
 		return $data;
 	}
 
@@ -92,7 +129,21 @@ class Github {
 
 		Debug::log( 'Saving file to: ' . $file_path, null, 2 );
 		// Save the zip file.
-		$wp_filesystem->put_contents( $file_path, $zip['body'] );
+		$result = $wp_filesystem->put_contents( $file_path, $zip['body'] );
+
+		if ( ! $result ) {
+			Debug::log( 'Failed to save file to: ' . $file_path, null, 2 );
+			Admin_Notices::add_notice(
+				__( 'Premia failed to save a file from Github to your server.', 'premia' ),
+				'permission-issue',
+				time(),
+				'error',
+				array(
+					'file' => $file_path,
+				)
+			);
+
+		}
 
 		return $file_path;
 	}

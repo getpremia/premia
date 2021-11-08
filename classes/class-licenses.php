@@ -46,12 +46,33 @@ class Licenses {
 	 * Start the class.
 	 */
 	public function start() {
+		add_filter( 'premia_customize_post_fields', array( $this, 'add_validation_checkbox' ) );
+		add_filter( 'premia_validate_request', array( $this, 'validate_request', 10, 2 ) );
+		add_filter( 'premia_customize_update_info', array( $this, 'prevent_download', 10, 2 ) );
+		add_filter( 'premia_validate', array( $this, 'validate_site', 10, 2 ) );
 		if ( $this->is_necessary() ) {
 			add_action( 'init', array( $this, 'register_post_types' ) );
 			add_action( 'manage_prem_license_posts_columns', array( $this, 'manage_columns' ) );
 			add_action( 'manage_prem_license_posts_custom_column', array( $this, 'columns_content' ), 10, 2 );
 			add_action( 'wp_insert_post_data', array( $this, 'insert_license' ), 10, 2 );
 		}
+	}
+
+	/**
+	 * Add validation checkbox to custom post fields
+	 *
+	 * @param array $fields Array of current fields.
+	 * @return array $fields Array of new fields.
+	 */
+	public function add_validation_checkbox( $fields ) {
+		$fields[] = array(
+			'name'    => '_updater_do_not_validate_licenses',
+			'type'    => 'checkbox',
+			'label'   => __( 'Do not validate licenses', 'premia' ),
+			'desc'    => __( 'When enabling this option, license checks are disabled.', 'premia' ),
+			'visible' => true,
+		);
+		return $fields;
 	}
 
 	/**
@@ -395,11 +416,11 @@ class Licenses {
 	/**
 	 * Validate a site
 	 *
+	 * @param bool  $validate The current state.
 	 * @param array $license_info An array of license information.
 	 * @return bool The result.
 	 */
-	public static function validate_site( $license_info ) {
-		$validate = false;
+	public static function validate_site( $validate = false, $license_info ) {
 
 		if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
 			$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
@@ -533,5 +554,43 @@ class Licenses {
 		}
 
 		return $status;
+	}
+
+	/**
+	 * Validate request
+	 *
+	 * @param bool  $status The current status.
+	 * @param array $license_info array with license information.
+	 * @return bool The new status.
+	 */
+	public function validate_request( $validation_result, $params ) {
+		if ( isset( $license_info['post_id'] ) ) {
+			$do_not_validate = get_post_meta( $license_info['post_id'], '_updater_do_not_validate_licenses', true );
+
+			if ( $do_not_validate === true ) {
+				$validation_result = true;
+			}
+		}
+
+		// Check if license is expired.
+		if ( self::license_is_expired( $params ) ) {
+			$validation_result = false;
+		}
+
+		return $validation_result;
+	}
+
+	/**
+	 * Prevent Download
+	 */
+	public function prevent_download( $output, $license_info, $post_id ) {
+
+		$do_not_validate = get_post_meta( $post_id, '_updater_do_not_validate_licenses', true );
+
+		if ( 'on' !== $do_not_validate && ! $this->validate_site( false, $license_info ) ) {
+			$output['download_url'] = '';
+		}
+
+		return $output;
 	}
 }

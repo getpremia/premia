@@ -38,7 +38,6 @@ class Custom_Fields {
 
 		add_filter( 'premia_update_field', array( $this, 'replace_github_url' ) );
 		add_filter( 'premia_update_field', array( $this, 'github_remove_last_slash' ) );
-		add_filter( 'premia_update_field', array( $this, 'do_not_validate' ), 10, 3 );
 	}
 
 	/**
@@ -94,13 +93,6 @@ class Custom_Fields {
 					'label'   => __( 'Github API Key', 'premia' ),
 					/* translators: %1$s, %2$s, %3$s, %4$s are all <a> and </a>'s */
 					'desc'    => sprintf( __( '%1$sCreating a personal access token%2$s - %3$sTypes of Github accounts%4$s.', 'premia' ), '<a href="' . $doc_generate_url . '">', '</a>', '<a href="' . $doc_bot_url . '">', '</a>' ),
-					'visible' => true,
-				),
-				array(
-					'name'    => '_updater_do_not_validate_licenses',
-					'type'    => 'checkbox',
-					'label'   => __( 'Do not validate licenses', 'premia' ),
-					'desc'    => __( 'When enabling this option, license checks are disabled.', 'premia' ),
 					'visible' => true,
 				),
 				array(
@@ -287,24 +279,6 @@ class Custom_Fields {
 	public static function github_remove_last_slash( $value ) {
 		if ( strpos( $value, 'github.com' ) !== false ) {
 			$value = rtrim( sanitize_text_field( $value ), '/' );
-		}
-		return $value;
-	}
-
-	/**
-	 * When the checkbox for validation is selected, save the value as "on".
-	 *
-	 * @param string $value The current value.
-	 * @param array  $field the CMB2 field.
-	 * @param int    $post_id The Post ID.
-	 * @return string The new value.
-	 */
-	public function do_not_validate( $value, $field, $post_id ) {
-		// We don't need to do this for Woocommerce products.
-		if ( get_post_type( $post_id ) !== 'product' ) {
-			if ( '_updater_do_not_validate_licenses' === $field['name'] ) {
-				$value = 'on';
-			}
 		}
 		return $value;
 	}

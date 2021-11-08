@@ -60,7 +60,7 @@ class REST_Endpoints {
 				array(
 					'methods'             => array( 'GET', 'POST' ),
 					'callback'            => $endpoint['callback'],
-					'permission_callback' => '__return_true',
+					'permission_callback' => array( $this, 'validate_request' ),
 				)
 			);
 			register_rest_route(
@@ -69,7 +69,7 @@ class REST_Endpoints {
 				array(
 					'methods'             => array( 'GET', 'POST' ),
 					'callback'            => $endpoint['callback'],
-					'permission_callback' => '__return_true',
+					'permission_callback' => array( $this, 'validate_request' ),
 				)
 			);
 		}
@@ -100,52 +100,18 @@ class REST_Endpoints {
 	 */
 	public function download_update( $request ) {
 
-		$license_info = $request->get_params();
+		$post_id = $this->get_plugin_post_id( $request );
 
-		$post = false;
-
-		// Check if requests comes from user, or from WordPress dashboard.
-		if ( ! $this->validate_request( $license_info ) ) {
-			Debug::log( 'Validate failed.', $license_info );
-			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request.' ), 400 );
-		}
-
-		if ( isset( $license_info['post_id'] ) ) {
-			$post = get_post( intval( $license_info['post_id'] ) );
-		} elseif ( isset( $license_info['plugin'] ) && ! empty( $license_info['plugin'] ) ) {
-			// Get the post that contains information about this download.
-			$posts = get_posts(
-				array(
-					'post_type'   => 'any',
-					'name'        => $license_info['plugin'],
-					'post_status' => 'publish',
-				)
-			);
-			if ( is_array( $posts ) && ! empty( $posts ) ) {
-				$post = reset( $posts );
-				if ( ! is_wp_error( $post ) ) {
-					$license_info['post_id'] = $post->ID;
-				}
-			}
-		}
-
-		if ( is_wp_error( $post ) || null === $post || false === $post ) {
-			Debug::log( 'Error on $post.', $post );
-			Debug::log( 'License info:', $license_info );
-			return new \WP_REST_Response( array( 'error' => 'Cannot fulfill this request (missing object information).' ), 400 );
-		}
-
-		// Check if license is expired.
-		if ( Licenses::license_is_expired( $license_info ) ) {
-			return new \WP_REST_Response( array( 'error' => 'License is expired.' ), 400 );
+		if ( is_wp_error( $post_id ) ) {
+			return new \WP_REST_Response( array( 'error' => 'Resource not found.' ), 400 );
 		}
 
 		// Latest release information.
-		$latest_release      = get_post_meta( $post->ID, '_premia_latest_release_version', true );
-		$latest_release_path = get_post_meta( $post->ID, '_premia_latest_release_path', true );
+		$latest_release      = get_post_meta( $post_id, '_premia_latest_release_version', true );
+		$latest_release_path = get_post_meta( $post_id, '_premia_latest_release_path', true );
 
 		// Validate the license info.
-		$validate = $this->validate( $license_info );
+		$validate = $this->validate( $request );
 
 		// Can't validate? bail.
 		if ( ! $validate ) {
@@ -153,39 +119,42 @@ class REST_Endpoints {
 			return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
 		}
 
-		$github_data = Github::get_meta_data( $post->ID );
+		// Get or update transient.
+		$transient_key = '_premia_latest_release_info_' . $post_id;
+		if ( $data = get_transient( $transient_key ) ) {
+			// Use cached data.
+		} else {
+			$data = array();
+			// Get Github data.
+			$github_data = Github::get_meta_data( $post_id );
 
-		// Can't authenticate? bail.
-		if ( empty( $github_data['api_url'] ) || empty( $github_data['api_token'] ) ) {
-			Debug::log( 'Missing github data.', $github_data );
-			return new \WP_REST_Response( array( 'error' => 'No API URL and token provided.' ), 400 );
+			// Get the result.
+			$result = Github::request( $github_data, '/releases/latest' );
+
+			if ( is_wp_error( $result ) || wp_remote_retrieve_response_code( $result ) !== 200 ) {
+				Debug::log( 'Failed to talk to Github.', array( $github_data, $result, wp_remote_retrieve_response_code( $result ) ) );
+				return new \WP_REST_Response( array( 'error' => 'Failed to communicate with Github.' ), 400 );
+			}
+
+			$post = get_post( $post_id );
+			$data = json_decode( wp_remote_retrieve_body( $result ) );
+			set_transient( $transient_key, $data, 3600 );
 		}
-		// Get the result.
-		$result = Github::request( $github_data, '/releases/latest' );
 
-		if ( is_wp_error( $result ) || wp_remote_retrieve_response_code( $result ) !== 200 ) {
-			Debug::log( 'Failed to talk to Github.', array( $github_data, $result, wp_remote_retrieve_response_code( $result ) ) );
-			return new \WP_REST_Response( array( 'error' => 'Failed to communicate with Github.' ), 400 );
-		}
+		$version = $data->tag_name;
 
-		$body    = json_decode( wp_remote_retrieve_body( $result ) );
-		$version = $body->tag_name;
-
-		Debug::log( 'Github response: ', $body, 3 );
-
-		$base_dir    = trailingslashit( apply_filters( 'premia_plugin_assets_download_path', plugin_dir_path( dirname( __FILE__ ) ) ) );
-		$directories = File_Directory::prepare_directories( $base_dir, $post->post_name, $version );
+		$directories = File_Directory::prepare_directories( $post->post_name, $version );
 
 		// Set the download url.
-		if ( is_array( $body->assets ) && ! empty( $body->assets ) ) {
-			$release = reset( $body->assets );
+		if ( is_array( $data->assets ) && ! empty( $data->assets ) ) {
+			$release = reset( $data->assets );
 			$zip_url = str_replace( $github_data['api_url'], '', $release->url );
 		} else {
 			return new \WP_REST_Response( array( 'error' => 'No assets found.' ), 400 );
 		}
 
+		// Check if new releases are published.
 		$redownload = false;
-
 		if ( $latest_release !== $version ) {
 			$redownload = true;
 			Debug::log(
@@ -198,20 +167,23 @@ class REST_Endpoints {
 			);
 		}
 
+		// Double check to see if files exist.
 		if ( empty( $latest_release_path ) || ! file_exists( $latest_release_path ) ) {
 			$redownload = true;
 			Debug::log( 'Unknown cached release.', $latest_release, 2 );
 		}
 
-		if ( defined( 'PREMIA_DEBUG' ) ) {
+		// Always get latest release while debugging.
+		if ( defined( 'PREMIA_NOCACHE' ) && false !== PREMIA_NOCACHE ) {
 			$redownload = true;
 		}
 
-		if ( $redownload ) {
+		// Redownload.
+		if ( $redownload == true ) {
 			Debug::log( 'Downloading latest release.', false, 2 );
 
 			// Get the ZIP.
-			$file_path = Github::download_asset( $github_data, $zip_url, $base_dir . $directories['current_release'] );
+			$file_path = Github::download_asset( $github_data, $zip_url, $directories['base_dir'] . $directories['current_release'] );
 
 			update_post_meta( $post->ID, '_premia_latest_release_path', $file_path );
 			update_post_meta( $post->ID, '_premia_latest_release_version', $version );
@@ -220,17 +192,21 @@ class REST_Endpoints {
 			Debug::log( 'Using cached file.', $latest_release_path, 2 );
 		}
 
+		// Protected file check.
 		File_Directory::is_protected_file( $directories['current_release'] . basename( $latest_release_path ) );
-
-		// Set the correct headers.
-		if ( file_exists( $latest_release_path ) ) {
-			header( 'content-disposition: attachment; filename=' . basename( $latest_release_path ) );
-		}
 
 		Debug::log( 'Premia will serve this file: ', $latest_release_path, 2 );
 
-		// Bring back the ZIP!
-		//phpcs:ignore
+		// Double check on existence before serving the file.
+		if ( ! file_exists( $latest_release_path ) ) {
+			Debug::log( 'The file could not be found. ', $latest_release_path, 2 );
+			return new \WP_REST_Response( array( 'error' => 'An error occured while retrieving the file.' ), 400 );
+		}
+
+		// Set the correct headers.
+		header( 'content-disposition: attachment; filename=' . basename( $latest_release_path ) );
+
+		// Output content.
 		echo file_get_contents( $latest_release_path );
 
 		exit();
@@ -245,10 +221,7 @@ class REST_Endpoints {
 	 */
 	public function check_updates( $request ) {
 
-		$post_id      = false;
-		$license_info = $request->get_params();
-
-		Debug::log( 'Check updates', $license_info );
+		Debug::log( 'Check updates' );
 
 		$output = array(
 			'name'         => '',
@@ -259,104 +232,60 @@ class REST_Endpoints {
 			),
 		);
 
-		if ( ! isset( $license_info['plugin'] ) || empty( $license_info['plugin'] ) ) {
-			$output['name'] = 'No plugin provided';
-			Debug::log( 'Missing plugin name' );
+		$post_id = $this->get_plugin_post_id( $request );
+
+		if ( is_wp_error( $post_id ) ) {
+			return new \WP_REST_Response( array( 'error' => 'Resource not found.' ), 400 );
 		}
 
-		if ( ! isset( $license_info['license_key'] ) || ! isset( $license_info['site_url'] ) || ! isset( $license_info['plugin'] ) ) {
-			$output['name'] = 'License information incomplete.';
-			Debug::log( 'Missing license key or site url' );
-		}
+		if ( ! is_wp_error( $post_id ) ) {
 
-		if ( ! $this->validate_request( $license_info ) ) {
-			$output['name'] = 'Cannot validate request.';
-		}
+			$output['name'] = get_the_title( $post_id );
 
-		if ( isset( $license_info['plugin'] ) && ! empty( $license_info['plugin'] ) ) {
+			$github_data = Github::get_meta_data( $post_id );
 
-			$posts = get_posts(
-				array(
-					'post_type'   => 'any',
-					'post_status' => 'publish',
-					'name'        => $license_info['plugin'],
-				)
-			);
+			Debug::log( 'Post ID: ' . $post_id );
+			Debug::log( 'Repo used for Github API: ' . $github_data['api_url'] );
 
-			if ( ! is_array( $posts ) || empty( $posts ) ) {
-				$output['name'] = 'Plugin cannot be found.';
-				Debug::log( 'No results for query. ', $posts );
-			} else {
-				$post           = reset( $posts );
-				$post_id        = $post->ID;
-				$output['name'] = $post->post_title;
+			$version = 'latest';
 
-				$github_data = Github::get_meta_data( $post->ID );
-
-				Debug::log( 'Post ID: ' . $post->ID );
-				Debug::log( 'Repo used for Github API: ' . $github_data['api_url'] );
-
-				if ( isset( $license_info['tag'] ) && ! empty( $license_info['tag'] ) ) {
-					$latest = Github::request( $github_data, '/releases/tags/' . $license_info['tag'] );
-				} else {
-					$latest = Github::request( $github_data, '/releases/latest' );
-				}
-
-				if ( ! is_wp_error( $latest ) && wp_remote_retrieve_response_code( $latest ) === 200 ) {
-					$latest_info                     = json_decode( wp_remote_retrieve_body( $latest ) );
-					$output['version']               = $latest_info->tag_name;
-					$parsedown                       = new \Parsedown();
-					$output['sections']['changelog'] = preg_replace( '/<h\d.*?>(.*?)<\/h\d>/ims', '<h4>$1</h4>', $parsedown->text( $latest_info->body ) );
-				} else {
-					$output['name'] = 'Failed to get the latest version information.';
-					Debug::log( 'Failed to get the latest version information. Did you set the right token?', $latest );
-				}
-
-				if ( empty( $output['sections']['changelog'] ) ) {
-					$output['sections']['changelog'] = '<p>This release contains version ' . $output['version'] . ' of the ' . $output['name'] . ' plugin</p>';
-				}
-
-				// @todo: Should be logo.
-				$output['icons']['2x']     = wp_get_attachment_image_url( get_post_thumbnail_id( $post->ID ) );
-				$output['icons']['1x']     = wp_get_attachment_image_url( get_post_thumbnail_id( $post->ID ) );
-				$output['banners']['high'] = wp_get_attachment_image_url( get_post_thumbnail_id( $post->ID ), 'full' );
-				$output['banners']['low']  = wp_get_attachment_image_url( get_post_thumbnail_id( $post->ID ), 'large' );
-
-				if ( isset( $latest_info ) && property_exists( $latest_info, 'published_at' ) ) {
-					$output['last_updated'] = $latest_info->published_at;
-				}
-
-				// Extra params: required_php, tested, requires, active_installs, api, slug, donate_link, rating, num_ratings, contributors.
-				$output['author'] = '<a href="' . get_site_url() . '">' . get_bloginfo( 'name' ) . '</a>';
-
-				$download_url    = add_query_arg( $license_info, get_rest_url() . 'premia/v1/download_update' );
-				$do_not_validate = get_post_meta( $post->ID, '_updater_do_not_validate_licenses', true );
-
-				if ( 'on' === $do_not_validate ) {
-					$output['download_url'] = $download_url;
-				} else {
-					$validate = $this->validate( $license_info );
-					if ( $validate ) {
-						$output['download_url'] = $download_url;
-					}
-				}
+			if ( ! empty( $request->get_param( 'tag' ) ) ) {
+				$version = $request->get_param( 'tag' );
 			}
+
+			$release_data = Github::get_release_data( $github_data, $version );
+
+			$output['version']               = $release_data['version'];
+			$output['sections']['changelog'] = $release_data['changelog'];
+			$output['last_updated']          = $release_data['published_at'];
+
+			// @todo: Should be logo.
+			$output['icons']['2x']     = wp_get_attachment_image_url( get_post_thumbnail_id( $post_id ) );
+			$output['icons']['1x']     = wp_get_attachment_image_url( get_post_thumbnail_id( $post_id ) );
+			$output['banners']['high'] = wp_get_attachment_image_url( get_post_thumbnail_id( $post_id ), 'full' );
+			$output['banners']['low']  = wp_get_attachment_image_url( get_post_thumbnail_id( $post_id ), 'large' );
+
+			// Extra params: required_php, tested, requires, active_installs, api, slug, donate_link, rating, num_ratings, contributors.
+			$output['author'] = '<a href="' . get_site_url() . '">' . get_bloginfo( 'name' ) . '</a>';
+
+			$download_url           = add_query_arg( $request->get_params(), get_rest_url() . 'premia/v1/download_update' );
+			$output['download_url'] = $download_url;
 		}
 
 		Debug::log( 'Check updates answer: ', $output );
 
-		return apply_filters( 'premia_customize_update_info', $output, $license_info, $post_id );
+		return apply_filters( 'premia_customize_update_info', $output, $request->get_params(), $post_id );
 	}
 
 	/**
 	 * Validate the license by checking if the url is saved as meta for this license key.
 	 *
-	 * @param array $license_info Array of license information.
+	 * @param object $request WP_Rest_Request object.
 	 *
 	 * @return boolean true or false.
 	 */
-	public function validate( $license_info ) {
-		return Licenses::validate_site( $license_info );
+	public function validate( $request ) {
+		return apply_filters( 'premia_validate', true, $request->get_params() );
 	}
 
 	/**
@@ -409,28 +338,95 @@ class REST_Endpoints {
 	 *
 	 * @param array $license_info An array with license information.
 	 */
-	public function validate_request( $license_info ) {
+	public function validate_request( $request ) {
 
-		$success         = true;
-		$do_not_validate = false;
+		$params = $request->get_params();
 
-		if ( isset( $license_info['post_id'] ) ) {
-			$do_not_validate = get_post_meta( $license_info['post_id'], '_updater_do_not_validate_licenses', true );
-		}
+		$success = true;
 
-		if ( ! is_user_logged_in() && 'on' !== $do_not_validate ) {
+		// All not logged-in requests.
+		if ( ! is_user_logged_in() ) {
 
+			// Check if User Agent contains WordPress.
 			if ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), 'WordPress' ) === false ) {
 				$success = false;
-				Debug::log( 'Can\'t verify if request came from WordPress.', sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) );
+				$message = __( 'Can\'t verify if request came from WordPress.', 'premia' );
+				Debug::log( $message, sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) );
+				return new \WP_Error(
+					'rest_forbidden',
+					$message,
+					array( 'status' => rest_authorization_required_code() )
+				);
 			}
 
-			if ( isset( $license_info['site_url'] ) && ! empty( $license_info['site_url'] ) && ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $license_info['site_url'] ) === false ) ) {
+			// Check if User Agent contains Site URL.
+			if ( isset( $params['site_url'] ) && ! empty( $params['site_url'] ) && ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $params['site_url'] ) === false ) ) {
 				$success = false;
-				Debug::log( 'Can\'t verify if request came from website.', array( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $license_info['site_url'] ) );
+				$message = __( 'Can\'t verify if request came from website.', 'premia' );
+				Debug::log( $message, array( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $params['site_url'] ) );
+				return new \WP_Error(
+					'rest_forbidden',
+					$message,
+					array( 'status' => rest_authorization_required_code() )
+				);
 			}
 		}
 
-		return $success;
+		// Filter can be used to change validation state.
+		return apply_filters( 'premia_validate_request', $success, $params );
+	}
+
+	/**
+	 * Get plugin information
+	 * Retrieves all information from a plugin, based on passed parameters.
+	 *
+	 * @param object $request The WP_REST_Request object
+	 */
+	public function get_plugin_post_id( $request ) {
+
+		$post_id = false;
+
+		// If an ID is provided.
+		if ( ! empty( $request->get_param( 'post_id' ) ) ) {
+			$post_id = intval( $request->get_param( 'post_id' ) );
+		}
+
+		// Search by name.
+		if ( false === $post_id && ! empty( $request->get_param( 'plugin' ) ) ) {
+			// Get the post that contains information about this download.
+			$posts = get_posts(
+				array(
+					'post_type'   => 'any',
+					'name'        => $request->get_param( 'plugin' ),
+					'post_status' => 'publish',
+				)
+			);
+			if ( is_array( $posts ) && ! empty( $posts ) ) {
+				$post = reset( $posts );
+				if ( ! is_wp_error( $post ) ) {
+					$post_id = $post->ID;
+				}
+			}
+		}
+
+		$github_data = Github::get_meta_data( $post_id );
+		// Check if post is configured with Premia.
+		if ( ! isset( $github_data['api_url'] ) || empty( $github_data['api_url'] ) ) {
+			return new \WP_Error(
+				'rest_error',
+				__( 'Cannot find Premia configuration.', 'premia' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		if ( false === $post_id ) {
+			return new \WP_Error(
+				'rest_not_found',
+				__( 'Resource not found.', 'premia' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		return $post_id;
 	}
 }
