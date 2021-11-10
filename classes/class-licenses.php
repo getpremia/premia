@@ -46,12 +46,30 @@ class Licenses {
 	 * Start the class.
 	 */
 	public function start() {
+		add_filter( 'premia_customize_post_fields', array( $this, 'add_validation_checkbox' ) );
 		if ( $this->is_necessary() ) {
 			add_action( 'init', array( $this, 'register_post_types' ) );
 			add_action( 'manage_prem_license_posts_columns', array( $this, 'manage_columns' ) );
 			add_action( 'manage_prem_license_posts_custom_column', array( $this, 'columns_content' ), 10, 2 );
 			add_action( 'wp_insert_post_data', array( $this, 'insert_license' ), 10, 2 );
 		}
+	}
+
+	/**
+	 * Add validation checkbox to custom post fields
+	 *
+	 * @param array $fields Array of current fields.
+	 * @return array $fields Array of new fields.
+	 */
+	public function add_validation_checkbox( $fields ) {
+		$fields[] = array(
+			'name'    => '_updater_do_not_validate_licenses',
+			'type'    => 'checkbox',
+			'label'   => __( 'Do not validate licenses', 'premia' ),
+			'desc'    => __( 'When enabling this option, license checks are disabled.', 'premia' ),
+			'visible' => true,
+		);
+		return $fields;
 	}
 
 	/**
