@@ -44,7 +44,7 @@ class Admin_Options {
 	 */
 	public function init() {
 		add_action( 'admin_menu', array( $this, 'add_menu_page' ) );
-		add_action( 'admin_init', array( $this, 'check_permissions' ) );
+		add_action( 'current_screen', array( $this, 'check_permissions' ) );
 	}
 
 	/**
@@ -64,19 +64,29 @@ class Admin_Options {
 
 	/**
 	 * Check Permissions and possibly remove notice.
+	 *
+	 * @param object $screen WP_Screen object.
 	 */
-	public function check_permissions() {
-		//phpcs:ignore
-		if ( isset( $_GET['action'] ) && 'recheck-permissions' === $_GET['action'] ) {
-			$notices = Admin_Notices::get_notices();
-			foreach ( $notices['notices'] as $key => $notice ) {
-				if ( 'permission-issue' === $notice['type'] ) {
-					if ( File_Directory::is_protected_file( $notice['data']['file'], false ) ) {
-						Admin_Notices::remove_notice( $key );
+	public function check_permissions( $screen ) {
+		if ( 'toplevel_page_premia-settings' === $screen->base && isset( $_GET['action'] ) && isset( $_GET['_wpnonce'] ) ) {
+			$action = sanitize_key( $_GET['action'] );
+			$nonce  = sanitize_key( $_GET['_wpnonce'] );
+			if ( wp_verify_nonce( $nonce, $action ) ) {
+				if ( in_array( $action, array( 'recheck-permissions', 'clear-permissions' ), true ) ) {
+					$notices = Admin_Notices::get_notices();
+					if ( isset( $notices['notices'] ) && is_array( $notices['notices'] ) ) {
+						foreach ( $notices['notices'] as $key => $notice ) {
+							if ( 'permission-issue' === $notice['type'] ) {
+								if ( File_Directory::is_protected_file( $notice['data']['file'], false ) || 'clear-permissions' === $action ) {
+									Admin_Notices::remove_notice( $key );
+								}
+							}
+						}
 					}
 				}
 			}
 		}
+
 	}
 
 	/**
@@ -203,7 +213,11 @@ class Admin_Options {
 		</form>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Status', 'premia' ); ?></h1>
-			<p><a class="button button-secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=premia-settings&action=recheck-permissions' ) ); ?>"><?php esc_html_e( 'Re-check permissions', 'premia' ); ?></a></p>
+			<h3><?php esc_html_e( 'Permissions', 'premia' ); ?></h3>
+			<p>
+				<a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=premia-settings&action=recheck-permissions' ), 'recheck-permissions' ) ); ?>"><?php esc_html_e( 'Re-check permissions', 'premia' ); ?></a>
+				<a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=premia-settings&action=clear-permissions' ), 'clear-permissions' ) ); ?>"><?php esc_html_e( 'Clear permission issues', 'premia' ); ?></a>
+			</p>
 		</div>
 		</div>
 		<?php
