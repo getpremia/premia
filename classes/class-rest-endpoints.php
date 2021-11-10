@@ -74,7 +74,7 @@ class REST_Endpoints {
 	 */
 	public function download_update( $request ) {
 
-		$post_id = $this->get_plugin_post_id( $request );
+		$post_id = self::get_plugin_post_id( $request );
 
 		if ( is_wp_error( $post_id ) ) {
 			return new \WP_REST_Response( array( 'error' => 'Resource not found.' ), 400 );
@@ -85,13 +85,14 @@ class REST_Endpoints {
 		$latest_release_path = get_post_meta( $post_id, '_premia_latest_release_path', true );
 
 		// Validate the license info.
-		$validate = $this->validate( $request );
+		// @todo - should not be here.
+		// $validate = $this->validate( $request );.
 
 		// Can't validate? bail.
-		if ( ! $validate ) {
-			Debug::log( 'Failed validation.', $validate );
-			return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
-		}
+		// if ( ! $validate ) {
+		// Debug::log( 'Failed validation.', $validate );
+		// return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
+		// }.
 
 		// Set post.
 		$post = get_post( $post_id );
@@ -212,7 +213,7 @@ class REST_Endpoints {
 			),
 		);
 
-		$post_id = $this->get_plugin_post_id( $request );
+		$post_id = self::get_plugin_post_id( $request );
 
 		if ( is_wp_error( $post_id ) ) {
 			return new \WP_REST_Response( array( 'error' => 'Resource not found.' ), 400 );
@@ -293,7 +294,7 @@ class REST_Endpoints {
 	 *
 	 * @return mixed int or WP_Error object.
 	 */
-	public function get_plugin_post_id( $request ) {
+	public static function get_plugin_post_id( $request ) {
 
 		$post_id = false;
 
