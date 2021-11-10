@@ -60,7 +60,7 @@ class REST_Endpoints {
 				array(
 					'methods'             => array( 'GET', 'POST' ),
 					'callback'            => $endpoint['callback'],
-					'permission_callback' => '__return_true',
+					'permission_callback' => array( $this, 'validate_request' ),
 				)
 			);
 			register_rest_route(
@@ -69,7 +69,7 @@ class REST_Endpoints {
 				array(
 					'methods'             => array( 'GET', 'POST' ),
 					'callback'            => $endpoint['callback'],
-					'permission_callback' => '__return_true',
+					'permission_callback' => array( $this, 'validate_request' ),
 				)
 			);
 		}
@@ -407,18 +407,19 @@ class REST_Endpoints {
 	/**
 	 * Validate that this request comes from WordPress
 	 *
-	 * @param array $license_info An array with license information.
+	 * @param object $request The WP_Request object.
+	 *
+	 * @return bool Validation passed?
 	 */
-	public function validate_request( $license_info ) {
+	public function validate_request( $request ) {
 
-		$success         = true;
-		$do_not_validate = false;
+		$params = $request->get_params();
 
-		if ( isset( $license_info['post_id'] ) ) {
-			$do_not_validate = get_post_meta( $license_info['post_id'], '_updater_do_not_validate_licenses', true );
-		}
+		$success = true;
 
-		if ( ! is_user_logged_in() && 'on' !== $do_not_validate ) {
+		// Filter can be used to change validation state.
+		return apply_filters( 'premia_validate_request', $success, $params );
+	}
 
 			if ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), 'WordPress' ) === false ) {
 				$success = false;
