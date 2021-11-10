@@ -70,6 +70,40 @@ class Github {
 	}
 
 	/**
+	 * Get release data
+	 *
+	 * @param array  $github_data Array with Github information.
+	 * @param string $version The version requested.
+	 * @return array Array of release information.
+	 */
+	public static function get_release_data( $github_data, $version ) {
+
+		$data = array(
+			'version'      => '',
+			'changelog'    => '',
+			'published_at' => '',
+			'id'           => '',
+		);
+
+		$request     = self::request( $github_data, ( 'latest' === $version ) ? '/releases/latest' : '/releases/tags/' . $version );
+		$latest_info = json_decode( wp_remote_retrieve_body( $request ) );
+		if ( ! is_wp_error( $request ) && wp_remote_retrieve_response_code( $request ) === 200 ) {
+			$parsedown = new \Parsedown();
+
+			$data['version']      = $latest_info->tag_name;
+			$data['changelog']    = preg_replace( '/<h\d.*?>(.*?)<\/h\d>/ims', '<h4>$1</h4>', $parsedown->text( $latest_info->body ) );
+			$data['published_at'] = $latest_info->published_at;
+			$data['id']           = $latest_info->id;
+			if ( empty( $data['changelog'] ) ) {
+				$data['changelog'] = '<p>This release contains version ' . $data['version'] . '.</p>';
+			}
+		} else {
+			Debug::log( 'Failed to get the latest version information. Did you set the right token?', $latest_info );
+		}
+		return $data;
+	}
+
+	/**
 	 * Download a ZIP file
 	 *
 	 * @param array  $github_data The api information.
