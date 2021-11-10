@@ -103,7 +103,16 @@ class Licenses {
 	 * @param object $request The request object.
 	 */
 	public function activate( $request ) {
-		return $this->manage_license( $request, 'activate' );
+		/**
+		 * What should activate do?
+		 * 1. Validate
+		 * 2. Add site
+		 */
+		$validate     = self::validate_license_key( $request );
+		$license_info = $request->get_params();
+		if ( true === $validate ) {
+			self::add_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
+		}
 	}
 
 	/**
@@ -136,7 +145,7 @@ class Licenses {
 		switch ( $action ) {
 			case 'deactivate':
 				Debug::log( 'Deactivate license', $license_info );
-				$result = self::activate_license( true, $license_info );
+				$result = self::activate_license( true, $request );
 				if ( ! $result ) {
 					Debug::log( 'Failed to deactivate license', $license_info );
 					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
@@ -147,7 +156,7 @@ class Licenses {
 
 			case 'activate':
 				Debug::log( 'Activate license', $license_info );
-				$result = self::activate_license( $license_info );
+				$result = self::activate_license( $request );
 				if ( ! $result ) {
 					Debug::log( 'Failed to activate license', $license_info );
 					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
@@ -435,10 +444,12 @@ class Licenses {
 	/**
 	 * Activate a license
 	 *
-	 * @param array $license_info An array of license information.
+	 * @param object $request The WP_Request object.
 	 * @return bool The result.
 	 */
-	public static function activate_license( $license_info ) {
+	public static function activate_license( $request ) {
+
+		$license_info = $request->get_params();
 
 		Debug::log( 'Activate:', $license_info );
 
@@ -447,7 +458,7 @@ class Licenses {
 			return self::check_site( $license_info['license_key'], $license_info['site_url'] );
 		}
 
-		$validate = self::validate_license_key( $license_info );
+		$validate = self::validate_license_key( $request );
 		if ( $validate ) {
 			if ( ! empty( $license_info['site_url'] ) ) {
 				// Check if license key belongs to post.
@@ -460,11 +471,12 @@ class Licenses {
 	/**
 	 * Deactivate a license
 	 *
-	 * @param array $license_info An array of license information.
+	 * @param object $request The WP_Request object.
 	 * @return bool The result.
 	 */
-	public static function deactivate_license( $license_info ) {
-		$status = false;
+	public static function deactivate_license( $request ) {
+		$license_info = $request->get_params();
+		$status       = false;
 		if ( isset( $license_info['license_key'] ) && isset( $license_info['site_url'] ) ) {
 			if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
 				$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
@@ -473,7 +485,7 @@ class Licenses {
 				}
 			}
 
-			if ( self::license_has_access( $license_info ) ) {
+			if ( self::license_has_access( $request ) ) {
 				$status = true;
 				self::remove_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
 			}
@@ -496,19 +508,19 @@ class Licenses {
 	 * Validate a license key
 	 * Checks to see if a license belongs to the post.
 	 *
-	 * @param array $license_info An array of license information.
+	 * @param object $request The WP_Request object.
 	 * @return bool $validate The result.
 	 */
-	public static function validate_license_key( $license_info ) {
+	public static function validate_license_key( $request ) {
 		$validate = false;
 
-		if ( ! self::license_has_access( $license_info ) ) {
-			$validate = false;
+		if ( self::license_has_access( $request ) ) {
+			$validate = true;
 		}
 
 		Debug::log( 'Validation result: ', $validate );
 
-		return apply_filters( 'premia_validate_license', $validate, $license_info );
+		return apply_filters( 'premia_validate_license', $validate, $request );
 	}
 
 	/**
@@ -574,17 +586,22 @@ class Licenses {
 	/**
 	 * Does the license have access to the post?
 	 *
-	 * @param array $params An array of license information.
+	 * @param object $request The WP_Request object.
 	 * @return bool The result.
 	 */
-	public static function license_has_access( $params ) {
+	public static function license_has_access( $request ) {
 		$status = false;
 
+		$params = $request->get_params();
+
 		// @todo - this function should have post ID already.
+		if ( ! isset( $params['post_id'] ) ) {
+			$params['post_id'] = Rest_Endpoints::get_plugin_post_id( $request );
+		}
 
 		// Get linked post from license key.
 		$linked_post = intval( self::get_linked_post_by_license_key( $params['license_key'] ) );
-		if ( $linked_post === $params['post_id'] ) {
+		if ( intval( $params['post_id'] ) === $linked_post ) {
 			$status = true;
 		}
 
