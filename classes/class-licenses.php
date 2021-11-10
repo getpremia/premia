@@ -47,9 +47,9 @@ class Licenses {
 	 */
 	public function start() {
 		add_filter( 'premia_customize_post_fields', array( $this, 'add_validation_checkbox' ) );
-		add_filter( 'premia_validate_request', array( $this, 'validate_request', 10, 2 ) );
-		add_filter( 'premia_customize_update_info', array( $this, 'prevent_download', 10, 2 ) );
-		add_filter( 'premia_validate', array( $this, 'validate_site', 10, 2 ) );
+		add_filter( 'premia_validate_request', array( $this, 'validate_request' ), 10, 2 );
+		add_filter( 'premia_customize_update_info', array( $this, 'prevent_download' ), 10, 2 );
+		add_filter( 'premia_validate', array( $this, 'validate_site' ), 10, 2 );
 		if ( $this->is_necessary() ) {
 			add_action( 'init', array( $this, 'register_post_types' ) );
 			add_action( 'manage_prem_license_posts_columns', array( $this, 'manage_columns' ) );
@@ -336,7 +336,7 @@ class Licenses {
 	 */
 	public static function activate( $license_info ) {
 
-		Debug::log( 'activate:', $license_info );
+		Debug::log( 'Activate:', $license_info );
 
 		// Check for status.
 		if ( isset( $license_info['action'] ) && 'status' === $license_info['action'] ) {
@@ -390,6 +390,7 @@ class Licenses {
 
 	/**
 	 * Validate a license key
+	 * Checks to see if a license belongs to the post.
 	 *
 	 * @param array $license_info An array of license information.
 	 * @return bool $validate The result.
