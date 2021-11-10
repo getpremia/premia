@@ -130,7 +130,21 @@ class Github {
 
 		Debug::log( 'Saving file to: ' . $file_path, null, 2 );
 		// Save the zip file.
-		$wp_filesystem->put_contents( $file_path, $zip['body'] );
+		$result = $wp_filesystem->put_contents( $file_path, $zip['body'] );
+
+		if ( ! $result ) {
+			Debug::log( 'Failed to save file to: ' . $file_path, null, 2 );
+			Admin_Notices::add_notice(
+				__( 'Premia failed to save a file from Github to your server.', 'premia' ),
+				'permission-issue',
+				time(),
+				'error',
+				array(
+					'file' => $file_path,
+				)
+			);
+
+		}
 
 		return $file_path;
 	}
