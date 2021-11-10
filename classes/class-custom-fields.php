@@ -51,6 +51,8 @@ class Custom_Fields {
 
 		$fields = array();
 
+		// @todo needs to be moved to licenses.
+
 		$license_fields = apply_filters(
 			'premia_customize_license_fields',
 			array(
@@ -73,6 +75,12 @@ class Custom_Fields {
 					'label'   => __( 'Expires on', 'premia' ),
 					'type'    => 'static_text',
 					'visible' => true,
+				),
+				array(
+					'name'    => '_updater_nonce',
+					'type'    => 'nonce',
+					'visible' => true,
+					'save'    => false,
 				),
 			)
 		);
@@ -99,6 +107,7 @@ class Custom_Fields {
 					'name'    => '_updater_nonce',
 					'type'    => 'nonce',
 					'visible' => true,
+					'save'    => false,
 				),
 			)
 		);
@@ -244,6 +253,9 @@ class Custom_Fields {
 
 		if ( isset( $_POST['_updater_nonce'] ) && wp_verify_nonce( sanitize_key( $_POST['_updater_nonce'] ) ) ) {
 			foreach ( $fields as $field ) {
+				if ( isset( $field['save'] ) && false === $field['save'] ) {
+					continue;
+				}
 				$value = '';
 				if ( isset( $_POST[ $field['name'] ] ) ) {
 					$value = sanitize_text_field( wp_unslash( $_POST[ $field['name'] ] ) );
