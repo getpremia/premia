@@ -398,13 +398,6 @@ class Licenses {
 	public static function validate_license_key( $license_info ) {
 		$validate = false;
 
-		if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
-			$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
-			if ( is_int( $linked_post ) && 0 !== $linked_post ) {
-				$validate = true;
-			}
-		}
-
 		if ( ! self::license_has_access( $license_info ) ) {
 			$validate = false;
 		}
@@ -477,18 +470,21 @@ class Licenses {
 	/**
 	 * Does the license have access to the post?
 	 *
-	 * @param array $license_info An array of license information.
+	 * @param array $params An array of license information.
 	 * @return bool The result.
 	 */
-	public static function license_has_access( $license_info ) {
-		$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
-		if ( 0 !== $linked_post ) {
-			$name = get_post_field( 'post_name', $linked_post );
-			if ( ( isset( $license_info['post_id'] ) && $license_info['post_id'] !== $linked_post ) || $license_info['plugin'] !== $name ) {
-				return false;
-			}
+	public static function license_has_access( $params ) {
+		$status = false;
+
+		// @todo - this function should have post ID already.
+
+		// Get linked post from license key.
+		$linked_post = intval( self::get_linked_post_by_license_key( $params['license_key'] ) );
+		if ( $linked_post === $params['post_id'] ) {
+			$status = true;
 		}
-		return true;
+
+		return apply_filters( 'premia_license_has_access', $status, $params );
 	}
 
 	/**
@@ -560,28 +556,30 @@ class Licenses {
 	/**
 	 * Validate request
 	 *
-	 * @param bool  $validation_result The current status.
+	 * @param bool  $validation_result The current status (true by default).
 	 * @param array $params The request parameters.
 	 *
 	 * @return bool The new status.
 	 */
 	public function validate_request( $validation_result, $params ) {
 
+		/**
+		 * Allow every request, end early and return true.
+		 */
+		if ( isset( $params['post_id'] ) ) {
+			$do_not_validate = get_post_meta( $params['post_id'], '_updater_do_not_validate_licenses', true );
+
+			if ( 'on' === $do_not_validate ) {
+				return true;
+			}
+		}
+
 		// Check if license is expired.
 		if ( self::license_is_expired( $params ) ) {
 			$validation_result = false;
 		}
 
-		// If this post doens't require validation, set validation to true.
-		if ( isset( $params['post_id'] ) ) {
-			$do_not_validate = get_post_meta( $params['post_id'], '_updater_do_not_validate_licenses', true );
-
-			if ( 'on' === $do_not_validate ) {
-				$validation_result = true;
-			}
-		}
-
-		// All not logged-in requests.
+		// If the user is not logged in, check if request comes from WordPress and the provided Site URL.
 		if ( ! is_user_logged_in() ) {
 
 			// Check if User Agent contains WordPress.
