@@ -57,7 +57,11 @@ class Github {
 	 */
 	public static function get_meta_data( $post_id ) {
 
-		$data = array();
+		$data = array(
+			'api_url'   => '',
+			'api_token' => '',
+		);
+
 		// Get Github information from post.
 		$data['api_url']   = get_post_meta( $post_id, '_updater_repo', true );
 		$data['api_token'] = get_post_meta( $post_id, '_updater_api_token', true );
