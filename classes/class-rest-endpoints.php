@@ -81,7 +81,7 @@ class REST_Endpoints {
 	 * @param object $request The request object.
 	 */
 	public function activate( $request ) {
-		return $this->manage_license( $request->get_params(), 'activate' );
+		return $this->manage_license( $request, 'activate' );
 	}
 
 	/**
@@ -90,7 +90,7 @@ class REST_Endpoints {
 	 * @param object $request The request object.
 	 */
 	public function deactivate( $request ) {
-		return $this->manage_license( $request->get_params(), 'deactivate' );
+		return $this->manage_license( $request, 'deactivate' );
 	}
 
 	/**
@@ -297,10 +297,10 @@ class REST_Endpoints {
 	/**
 	 * Rest callback for activation.
 	 *
-	 * @param array  $license_info Array of license information.
+	 * @param object $request The WP_Request object.
 	 * @param string $action The intended action.
 	 */
-	public function manage_license( $license_info, $action ) {
+	public function manage_license( $request, $action ) {
 
 		$defaults = array(
 			'license_key' => '',
@@ -308,7 +308,9 @@ class REST_Endpoints {
 			'action'      => $action,
 		);
 
-		$license_info = wp_parse_args( $license_info, $defaults );
+		$params = $request->get_params();
+
+		$license_info = wp_parse_args( $params, $defaults );
 
 		switch ( $action ) {
 			case 'deactivate':
