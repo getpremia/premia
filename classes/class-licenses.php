@@ -50,11 +50,115 @@ class Licenses {
 		add_filter( 'premia_validate_request', array( $this, 'validate_request' ), 10, 2 );
 		add_filter( 'premia_customize_update_info', array( $this, 'prevent_download' ), 10, 2 );
 		add_filter( 'premia_validate', array( $this, 'validate_site' ), 10, 2 );
+		add_action( 'rest_api_init', array( $this, 'register_endpoints' ) );
 		if ( $this->is_necessary() ) {
 			add_action( 'init', array( $this, 'register_post_types' ) );
 			add_action( 'manage_prem_license_posts_columns', array( $this, 'manage_columns' ) );
 			add_action( 'manage_prem_license_posts_custom_column', array( $this, 'columns_content' ), 10, 2 );
 			add_action( 'wp_insert_post_data', array( $this, 'insert_license' ), 10, 2 );
+		}
+	}
+
+	/**
+	 * Register the REST endpoints.
+	 */
+	public function register_endpoints() {
+
+		$endpoints = array(
+			array(
+				'name'     => 'activate',
+				'callback' => array( $this, 'activate' ),
+			),
+			array(
+				'name'     => 'deactivate',
+				'callback' => array( $this, 'deactivate' ),
+			),
+		);
+
+		foreach ( $endpoints as $endpoint ) {
+			register_rest_route(
+				'license-updater/v1',
+				$endpoint['name'],
+				array(
+					'methods'             => array( 'GET', 'POST' ),
+					'callback'            => $endpoint['callback'],
+					'permission_callback' => array( REST_Endpoints::class, 'validate_request' ),
+				)
+			);
+			register_rest_route(
+				'premia/v1',
+				$endpoint['name'],
+				array(
+					'methods'             => array( 'GET', 'POST' ),
+					'callback'            => $endpoint['callback'],
+					'permission_callback' => array( REST_Endpoints::class, 'validate_request' ),
+				)
+			);
+		}
+	}
+
+	/**
+	 * Rest callback for deactivation.
+	 *
+	 * @param object $request The request object.
+	 */
+	public function activate( $request ) {
+		return $this->manage_license( $request, 'activate' );
+	}
+
+	/**
+	 * Rest callback for activation.
+	 *
+	 * @param object $request The request object.
+	 */
+	public function deactivate( $request ) {
+		return $this->manage_license( $request, 'deactivate' );
+	}
+
+	/**
+	 * Rest callback for activation.
+	 *
+	 * @param object $request The WP_Request object.
+	 * @param string $action The intended action.
+	 */
+	public function manage_license( $request, $action ) {
+
+		$defaults = array(
+			'license_key' => '',
+			'site_url'    => '',
+			'action'      => $action,
+		);
+
+		$params = $request->get_params();
+
+		$license_info = wp_parse_args( $params, $defaults );
+
+		switch ( $action ) {
+			case 'deactivate':
+				Debug::log( 'Deactivate license', $license_info );
+				$result = self::activate_license( true, $license_info );
+				if ( ! $result ) {
+					Debug::log( 'Failed to deactivate license', $license_info );
+					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
+				} else {
+					return __( 'License deactivated!', 'premia' );
+				}
+				break;
+
+			case 'activate':
+				Debug::log( 'Activate license', $license_info );
+				$result = self::activate_license( $license_info );
+				if ( ! $result ) {
+					Debug::log( 'Failed to activate license', $license_info );
+					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
+				} else {
+					return __( 'License activated!', 'premia' );
+				}
+				break;
+
+			default:
+				Debug::log( 'No action?', array( $action, $license_info ) );
+				return new \WP_REST_Response( array( 'error' => 'No action provided.' ), 400 );
 		}
 	}
 
@@ -334,7 +438,7 @@ class Licenses {
 	 * @param array $license_info An array of license information.
 	 * @return bool The result.
 	 */
-	public static function activate( $license_info ) {
+	public static function activate_license( $license_info ) {
 
 		Debug::log( 'Activate:', $license_info );
 
@@ -359,7 +463,7 @@ class Licenses {
 	 * @param array $license_info An array of license information.
 	 * @return bool The result.
 	 */
-	public static function deactivate( $license_info ) {
+	public static function deactivate_license( $license_info ) {
 		$status = false;
 		if ( isset( $license_info['license_key'] ) && isset( $license_info['site_url'] ) ) {
 			if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {

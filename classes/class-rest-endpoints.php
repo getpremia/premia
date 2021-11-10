@@ -43,14 +43,6 @@ class REST_Endpoints {
 				'name'     => 'download_update',
 				'callback' => array( $this, 'download_update' ),
 			),
-			array(
-				'name'     => 'activate',
-				'callback' => array( $this, 'activate' ),
-			),
-			array(
-				'name'     => 'deactivate',
-				'callback' => array( $this, 'deactivate' ),
-			),
 		);
 
 		foreach ( $endpoints as $endpoint ) {
@@ -73,24 +65,6 @@ class REST_Endpoints {
 				)
 			);
 		}
-	}
-
-	/**
-	 * Rest callback for deactivation.
-	 *
-	 * @param object $request The request object.
-	 */
-	public function activate( $request ) {
-		return $this->manage_license( $request, 'activate' );
-	}
-
-	/**
-	 * Rest callback for activation.
-	 *
-	 * @param object $request The request object.
-	 */
-	public function deactivate( $request ) {
-		return $this->manage_license( $request, 'deactivate' );
 	}
 
 	/**
@@ -295,60 +269,13 @@ class REST_Endpoints {
 	}
 
 	/**
-	 * Rest callback for activation.
-	 *
-	 * @param object $request The WP_Request object.
-	 * @param string $action The intended action.
-	 */
-	public function manage_license( $request, $action ) {
-
-		$defaults = array(
-			'license_key' => '',
-			'site_url'    => '',
-			'action'      => $action,
-		);
-
-		$params = $request->get_params();
-
-		$license_info = wp_parse_args( $params, $defaults );
-
-		switch ( $action ) {
-			case 'deactivate':
-				Debug::log( 'Deactivate license', $license_info );
-				$result = Licenses::deactivate( true, $license_info );
-				if ( ! $result ) {
-					Debug::log( 'Failed to deactivate license', $license_info );
-					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
-				} else {
-					return __( 'License deactivated!', 'premia' );
-				}
-				break;
-
-			case 'activate':
-				Debug::log( 'Activate license', $license_info );
-				$result = Licenses::activate( $license_info );
-				if ( ! $result ) {
-					Debug::log( 'Failed to activate license', $license_info );
-					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
-				} else {
-					return __( 'License activated!', 'premia' );
-				}
-				break;
-
-			default:
-				Debug::log( 'No action?', array( $action, $license_info ) );
-				return new \WP_REST_Response( array( 'error' => 'No action provided.' ), 400 );
-		}
-	}
-
-	/**
 	 * Validate that this request comes from WordPress
 	 *
 	 * @param object $request The WP_Request object.
 	 *
 	 * @return bool Validation passed?
 	 */
-	public function validate_request( $request ) {
+	public static function validate_request( $request ) {
 
 		$params = $request->get_params();
 
