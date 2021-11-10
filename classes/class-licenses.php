@@ -47,6 +47,9 @@ class Licenses {
 	 */
 	public function start() {
 		add_filter( 'premia_customize_post_fields', array( $this, 'add_validation_checkbox' ) );
+		add_filter( 'premia_validate_request', array( $this, 'validate_request', 10, 2 ) );
+		add_filter( 'premia_customize_update_info', array( $this, 'prevent_download', 10, 2 ) );
+		add_filter( 'premia_validate', array( $this, 'validate_site', 10, 2 ) );
 		if ( $this->is_necessary() ) {
 			add_action( 'init', array( $this, 'register_post_types' ) );
 			add_action( 'manage_prem_license_posts_columns', array( $this, 'manage_columns' ) );
@@ -413,11 +416,11 @@ class Licenses {
 	/**
 	 * Validate a site
 	 *
+	 * @param bool  $validate The current state.
 	 * @param array $license_info An array of license information.
 	 * @return bool The result.
 	 */
-	public static function validate_site( $license_info ) {
-		$validate = false;
+	public static function validate_site( $validate = false, $license_info ) {
 
 		if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
 			$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
@@ -430,7 +433,7 @@ class Licenses {
 		// Bail early as there's no validation to do.
 		if ( isset( $license_info['post_id'] ) && ! empty( $license_info['post_id'] ) ) {
 			$do_not_validate = get_post_meta( intval( $license_info['post_id'] ), '_updater_do_not_validate_licenses', true );
-			if ( $do_not_validate ) {
+			if ( 'on' === $do_not_validate ) {
 				return true;
 			}
 		}
@@ -551,5 +554,68 @@ class Licenses {
 		}
 
 		return $status;
+	}
+
+	/**
+	 * Validate request
+	 *
+	 * @param bool  $validation_result The current status.
+	 * @param array $params The request parameters.
+	 *
+	 * @return bool The new status.
+	 */
+	public function validate_request( $validation_result, $params ) {
+
+		// Check if license is expired.
+		if ( self::license_is_expired( $params ) ) {
+			$validation_result = false;
+		}
+
+		// If this post doens't require validation, set validation to true.
+		if ( isset( $params['post_id'] ) ) {
+			$do_not_validate = get_post_meta( $params['post_id'], '_updater_do_not_validate_licenses', true );
+
+			if ( 'on' === $do_not_validate ) {
+				$validation_result = true;
+			}
+		}
+
+		// All not logged-in requests.
+		if ( ! is_user_logged_in() ) {
+
+			// Check if User Agent contains WordPress.
+			if ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), 'WordPress' ) === false ) {
+				Debug::log( __( 'Can\'t verify if request came from WordPress.', 'premia' ), sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) );
+				$validation_result = false;
+			}
+
+			// Check if User Agent contains Site URL.
+			if ( isset( $params['site_url'] ) && ! empty( $params['site_url'] ) && ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $params['site_url'] ) === false ) ) {
+				Debug::log( __( 'Can\'t verify if request came from website.', 'premia' ), array( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $params['site_url'] ) );
+				$validation_result = false;
+			}
+		}
+
+		return $validation_result;
+	}
+
+	/**
+	 * Prevent Download
+	 *
+	 * @param array $output The output array for check_updates.
+	 * @param array $params The request parameters.
+	 * @param int   $post_id The Post ID.
+	 */
+	public function prevent_download( $output, $params, $post_id ) {
+
+		// @todo this function can probably be removed. (why remove a download url that doesn't work?, basically just passing existing get params).
+
+		$do_not_validate = get_post_meta( $post_id, '_updater_do_not_validate_licenses', true );
+
+		if ( 'on' !== $do_not_validate && ! $this->validate_site( false, $params ) ) {
+			$output['download_url'] = '';
+		}
+
+		return $output;
 	}
 }
