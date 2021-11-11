@@ -32,9 +32,7 @@ function run_premia() {
 	new Custom_Fields();
 	new Shortcodes();
 	new Debug();
-	new Admin_Options();
 	new Admin_Notices();
-	new Updater( 'premia', __FILE__ );
 }
 
 run_premia();
