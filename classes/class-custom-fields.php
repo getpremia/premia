@@ -38,7 +38,6 @@ class Custom_Fields {
 
 		add_filter( 'premia_update_field', array( $this, 'replace_github_url' ) );
 		add_filter( 'premia_update_field', array( $this, 'github_remove_last_slash' ) );
-		add_filter( 'premia_update_field', array( $this, 'do_not_validate' ), 10, 3 );
 	}
 
 	/**
@@ -51,6 +50,8 @@ class Custom_Fields {
 		$doc_bot_url      = 'https://docs.github.com/en/github/getting-started-with-github/learning-about-github/types-of-github-accounts';
 
 		$fields = array();
+
+		// @todo needs to be moved to licenses.
 
 		$license_fields = apply_filters(
 			'premia_customize_license_fields',
@@ -74,6 +75,13 @@ class Custom_Fields {
 					'label'   => __( 'Expires on', 'premia' ),
 					'type'    => 'static_text',
 					'visible' => true,
+					'save'    => false,
+				),
+				array(
+					'name'    => '_updater_nonce',
+					'type'    => 'nonce',
+					'visible' => true,
+					'save'    => false,
 				),
 			)
 		);
@@ -97,16 +105,10 @@ class Custom_Fields {
 					'visible' => true,
 				),
 				array(
-					'name'    => '_updater_do_not_validate_licenses',
-					'type'    => 'checkbox',
-					'label'   => __( 'Do not validate licenses', 'premia' ),
-					'desc'    => __( 'When enabling this option, license checks are disabled.', 'premia' ),
-					'visible' => true,
-				),
-				array(
 					'name'    => '_updater_nonce',
 					'type'    => 'nonce',
 					'visible' => true,
+					'save'    => false,
 				),
 			)
 		);
@@ -252,6 +254,9 @@ class Custom_Fields {
 
 		if ( isset( $_POST['_updater_nonce'] ) && wp_verify_nonce( sanitize_key( $_POST['_updater_nonce'] ) ) ) {
 			foreach ( $fields as $field ) {
+				if ( isset( $field['save'] ) && false === $field['save'] ) {
+					continue;
+				}
 				$value = '';
 				if ( isset( $_POST[ $field['name'] ] ) ) {
 					$value = sanitize_text_field( wp_unslash( $_POST[ $field['name'] ] ) );
@@ -287,24 +292,6 @@ class Custom_Fields {
 	public static function github_remove_last_slash( $value ) {
 		if ( strpos( $value, 'github.com' ) !== false ) {
 			$value = rtrim( sanitize_text_field( $value ), '/' );
-		}
-		return $value;
-	}
-
-	/**
-	 * When the checkbox for validation is selected, save the value as "on".
-	 *
-	 * @param string $value The current value.
-	 * @param array  $field the CMB2 field.
-	 * @param int    $post_id The Post ID.
-	 * @return string The new value.
-	 */
-	public function do_not_validate( $value, $field, $post_id ) {
-		// We don't need to do this for Woocommerce products.
-		if ( get_post_type( $post_id ) !== 'product' ) {
-			if ( '_updater_do_not_validate_licenses' === $field['name'] ) {
-				$value = 'on';
-			}
 		}
 		return $value;
 	}

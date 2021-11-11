@@ -46,12 +46,99 @@ class Licenses {
 	 * Start the class.
 	 */
 	public function start() {
+		add_filter( 'premia_customize_post_fields', array( $this, 'add_validation_checkbox' ) );
+		add_filter( 'premia_validate_request', array( $this, 'validate_request' ), 10, 2 );
+		add_filter( 'premia_validate', array( $this, 'validate_site' ), 10, 2 );
+		add_action( 'rest_api_init', array( $this, 'register_endpoints' ) );
 		if ( $this->is_necessary() ) {
 			add_action( 'init', array( $this, 'register_post_types' ) );
 			add_action( 'manage_prem_license_posts_columns', array( $this, 'manage_columns' ) );
 			add_action( 'manage_prem_license_posts_custom_column', array( $this, 'columns_content' ), 10, 2 );
 			add_action( 'wp_insert_post_data', array( $this, 'insert_license' ), 10, 2 );
+			add_action( 'save_post_prem_license', array( $this, 'set_expiry_date' ), 10, 2 );
 		}
+	}
+
+	/**
+	 * Register the REST endpoints.
+	 */
+	public function register_endpoints() {
+
+		$endpoints = array(
+			array(
+				'name'     => 'activate',
+				'callback' => array( $this, 'activate' ),
+			),
+			array(
+				'name'     => 'deactivate',
+				'callback' => array( $this, 'deactivate' ),
+			),
+		);
+
+		foreach ( $endpoints as $endpoint ) {
+			register_rest_route(
+				'license-updater/v1',
+				$endpoint['name'],
+				array(
+					'methods'             => array( 'GET', 'POST' ),
+					'callback'            => $endpoint['callback'],
+					'permission_callback' => array( REST_Endpoints::class, 'validate_request' ),
+				)
+			);
+			register_rest_route(
+				'premia/v1',
+				$endpoint['name'],
+				array(
+					'methods'             => array( 'GET', 'POST' ),
+					'callback'            => $endpoint['callback'],
+					'permission_callback' => array( REST_Endpoints::class, 'validate_request' ),
+				)
+			);
+		}
+	}
+
+	/**
+	 * Rest callback for deactivation.
+	 *
+	 * @param object $request The request object.
+	 */
+	public function activate( $request ) {
+		$validate     = self::validate_license_key( $request );
+		$license_info = $request->get_params();
+
+		if ( true === $validate ) {
+			self::add_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
+			return new \WP_REST_Response( array( 'message' => 'License activated!' ), 200 );
+		}
+		return new \WP_REST_Response( array( 'message' => 'Something went wrong.' ), 400 );
+	}
+
+	/**
+	 * Rest callback for activation.
+	 *
+	 * @param object $request The request object.
+	 */
+	public function deactivate( $request ) {
+		$license_info = $request->get_params();
+		self::remove_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
+		return new \WP_REST_Response( array( 'message' => 'License deactivated!' ), 200 );
+	}
+
+	/**
+	 * Add validation checkbox to custom post fields
+	 *
+	 * @param array $fields Array of current fields.
+	 * @return array $fields Array of new fields.
+	 */
+	public function add_validation_checkbox( $fields ) {
+		$fields[] = array(
+			'name'    => '_updater_do_not_validate_licenses',
+			'type'    => 'checkbox',
+			'label'   => __( 'Do not validate licenses', 'premia' ),
+			'desc'    => __( 'When enabling this option, license checks are disabled.', 'premia' ),
+			'visible' => true,
+		);
+		return $fields;
 	}
 
 	/**
@@ -146,6 +233,39 @@ class Licenses {
 	}
 
 	/**
+	 * Set expiry date.
+	 *
+	 * @param int    $post_id The Post ID.
+	 * @param object $post The WP_Post Object.
+	 */
+	public function set_expiry_date( $post_id, $post ) {
+
+		if ( wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+
+		if ( 'auto-draft' === $post->post_status ) {
+			return;
+		}
+
+		$expiry_date = get_post_meta( $post_id, '_premia_expiry_date', true );
+
+		if ( empty( $expiry_date ) ) {
+			$license_days = apply_filters( 'premia_license_validity', 365, $post_id );
+
+			Debug::log( $license_days );
+
+			// Only add meta when license days is above 0.
+			if ( 0 !== $license_days && $license_days > 0 ) {
+				$today = new \Datetime();
+				$today->modify( "+{$license_days}days" );
+				$result = update_post_meta( $post_id, '_premia_expiry_date', $today->getTimestamp() );
+				Debug::log( 'run?', array( $result, $post_id ) );
+			}
+		}
+	}
+
+	/**
 	 * Verified if the key structure is correct.
 	 *
 	 * @param string $license_key The license key.
@@ -181,12 +301,12 @@ class Licenses {
 	/**
 	 * Create a license.
 	 *
-	 * @param int $product_id The Product ID.
+	 * @param int $post_id The Post ID.
 	 * @param int $user_id The User ID.
 	 * @return int The licence post ID.
 	 */
-	public static function create_license( $product_id, $user_id ) {
-		Debug::log( "Create license (product #{$product_id}) for user #{$user_id}" );
+	public static function create_license( $post_id, $user_id ) {
+		Debug::log( "Create license (product #{$post_id}) for user #{$user_id}" );
 
 		$license_args = array(
 			'post_title'  => self::generate_license(),
@@ -194,19 +314,9 @@ class Licenses {
 			'post_type'   => 'prem_license',
 			'post_author' => $user_id,
 			'meta_input'  => array(
-				'_premia_linked_post_id' => $product_id,
+				'_premia_linked_post_id' => $post_id,
 			),
 		);
-
-		$license_days = intval( get_post_meta( $product_id, '_updater_license_validity', true ) );
-
-		// Only add meta when license days is above 0.
-		if ( 0 !== $license_days && $license_days > 0 ) {
-			$today = new \Datetime();
-			$today->setTimestamp( time() );
-			$today->modify( "+{$license_days}days" );
-			$license_args['meta_input']['_premia_expiry_date'] = $today->getTimestamp();
-		}
 
 		$license_id = wp_insert_post( $license_args );
 
@@ -244,6 +354,7 @@ class Licenses {
 	 * @param string $site_url The site URL.
 	 */
 	public static function add_site( $license_key, $site_url ) {
+		// @todo - this function should not run when license manager is active.
 		Debug::log( 'Add site: ' . $site_url );
 		$post = self::get_license_by_license_key( $license_key );
 		if ( null !== $post && is_a( $post, 'WP_Post' ) ) {
@@ -256,6 +367,8 @@ class Licenses {
 			}
 			update_post_meta( $post->ID, 'installations', $sites );
 		}
+
+		return true;
 	}
 
 	/**
@@ -308,55 +421,6 @@ class Licenses {
 	}
 
 	/**
-	 * Activate a license
-	 *
-	 * @param array $license_info An array of license information.
-	 * @return bool The result.
-	 */
-	public static function activate( $license_info ) {
-
-		Debug::log( 'activate:', $license_info );
-
-		// Check for status.
-		if ( isset( $license_info['action'] ) && 'status' === $license_info['action'] ) {
-			return self::check_site( $license_info['license_key'], $license_info['site_url'] );
-		}
-
-		$validate = self::validate_license_key( $license_info );
-		if ( $validate ) {
-			if ( ! empty( $license_info['site_url'] ) ) {
-				// Check if license key belongs to post.
-				self::add_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
-			}
-		}
-		return apply_filters( 'premia_activate_license', $validate, $license_info );
-	}
-
-	/**
-	 * Deactivate a license
-	 *
-	 * @param array $license_info An array of license information.
-	 * @return bool The result.
-	 */
-	public static function deactivate( $license_info ) {
-		$status = false;
-		if ( isset( $license_info['license_key'] ) && isset( $license_info['site_url'] ) ) {
-			if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
-				$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
-				if ( is_int( $linked_post ) ) {
-					$license_info['post_id'] = $linked_post;
-				}
-			}
-
-			if ( self::license_has_access( $license_info ) ) {
-				$status = true;
-				self::remove_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
-			}
-		}
-		return apply_filters( 'premia_deactivate_license', $status, $license_info );
-	}
-
-	/**
 	 * Get license
 	 *
 	 * @param array $license_info An array of license information.
@@ -369,38 +433,35 @@ class Licenses {
 
 	/**
 	 * Validate a license key
+	 * Checks to see if a license belongs to the post.
 	 *
-	 * @param array $license_info An array of license information.
+	 * @param object $request The WP_Request object.
 	 * @return bool $validate The result.
 	 */
-	public static function validate_license_key( $license_info ) {
+	public static function validate_license_key( $request ) {
 		$validate = false;
 
-		if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
-			$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
-			if ( is_int( $linked_post ) && 0 !== $linked_post ) {
-				$validate = true;
-			}
-		}
-
-		if ( ! self::license_has_access( $license_info ) ) {
-			$validate = false;
+		if ( self::license_has_access( $request ) ) {
+			$validate = true;
 		}
 
 		Debug::log( 'Validation result: ', $validate );
 
-		return apply_filters( 'premia_validate_license', $validate, $license_info );
+		return apply_filters( 'premia_validate_license', $validate, $request );
 	}
 
 	/**
 	 * Validate a site
 	 *
-	 * @param array $license_info An array of license information.
-	 * @return bool The result.
+	 * @param bool   $validate The current state.
+	 * @param object $request The WP_Request object.
+	 * @return mixed The result.
 	 */
-	public static function validate_site( $license_info ) {
-		$validate = false;
+	public function validate_site( $validate = false, $request ) {
 
+		$license_info = $request->get_params();
+
+		// Add Post ID if not present.
 		if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
 			$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
 			Debug::log( 'Linked post:', $linked_post );
@@ -412,24 +473,35 @@ class Licenses {
 		// Bail early as there's no validation to do.
 		if ( isset( $license_info['post_id'] ) && ! empty( $license_info['post_id'] ) ) {
 			$do_not_validate = get_post_meta( intval( $license_info['post_id'] ), '_updater_do_not_validate_licenses', true );
-			if ( $do_not_validate ) {
+			if ( 'on' === $do_not_validate ) {
 				return true;
 			}
 		}
 
 		if ( ! isset( $license_info['license_key'] ) || empty( $license_info['license_key'] ) ) {
 			Debug::log( 'Cannot validate', $license_info );
-			return false;
+			return new \WP_Error(
+				'validate_error',
+				__( 'No license key provided', 'premia' ),
+				array( 'status' => 400 )
+			);
 		}
 
 		if ( self::license_is_expired( $license_info ) ) {
-			$output['name'] = 'License has expired.';
-			return false;
+			return new \WP_Error(
+				'validate_error',
+				__( 'License has expired', 'premia' ),
+				array( 'status' => 400 )
+			);
 		}
 
 		// Check if license key belongs to post.
-		if ( ! self::license_has_access( $license_info ) ) {
-			return false;
+		if ( ! self::license_has_access( $request ) ) {
+			return new \WP_Error(
+				'validate_error',
+				__( 'The license does not have access to product', 'premia' ),
+				array( 'status' => 400 )
+			);
 		}
 
 		$sites = self::get_installations( $license_info['license_key'] );
@@ -449,24 +521,31 @@ class Licenses {
 
 		Debug::log( 'Validation result: ', $validate );
 
-		return apply_filters( 'premia_validate_license', $validate, $license_info );
+		return apply_filters( 'premia_validate_license', $validate, $request );
 	}
 
 	/**
 	 * Does the license have access to the post?
 	 *
-	 * @param array $license_info An array of license information.
+	 * @param object $request The WP_Request object.
 	 * @return bool The result.
 	 */
-	public static function license_has_access( $license_info ) {
-		$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
-		if ( 0 !== $linked_post ) {
-			$name = get_post_field( 'post_name', $linked_post );
-			if ( ( isset( $license_info['post_id'] ) && $license_info['post_id'] !== $linked_post ) || $license_info['plugin'] !== $name ) {
-				return false;
-			}
+	public static function license_has_access( $request ) {
+		$status = false;
+
+		$params = $request->get_params();
+
+		if ( ! isset( $params['post_id'] ) ) {
+			$params['post_id'] = Rest_Endpoints::get_plugin_post_id( $request );
 		}
-		return true;
+
+		// Get linked post from license key.
+		$linked_post = intval( self::get_linked_post_by_license_key( $params['license_key'] ) );
+		if ( intval( $params['post_id'] ) === $linked_post ) {
+			$status = true;
+		}
+
+		return apply_filters( 'premia_license_has_access', $status, $params );
 	}
 
 	/**
@@ -533,5 +612,50 @@ class Licenses {
 		}
 
 		return $status;
+	}
+
+	/**
+	 * Validate request
+	 *
+	 * @param bool  $validation_result The current status (true by default).
+	 * @param array $params The request parameters.
+	 *
+	 * @return bool The new status.
+	 */
+	public function validate_request( $validation_result, $params ) {
+
+		/**
+		 * Allow every request, end early and return true.
+		 */
+		if ( isset( $params['post_id'] ) ) {
+			$do_not_validate = get_post_meta( $params['post_id'], '_updater_do_not_validate_licenses', true );
+
+			if ( 'on' === $do_not_validate ) {
+				return true;
+			}
+		}
+
+		// Check if license is expired.
+		if ( self::license_is_expired( $params ) ) {
+			$validation_result = false;
+		}
+
+		// If the user is not logged in, check if request comes from WordPress and the provided Site URL.
+		if ( ! is_user_logged_in() ) {
+
+			// Check if User Agent contains WordPress.
+			if ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), 'WordPress' ) === false ) {
+				Debug::log( __( 'Can\'t verify if request came from WordPress.', 'premia' ), sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) );
+				$validation_result = false;
+			}
+
+			// Check if User Agent contains Site URL.
+			if ( isset( $params['site_url'] ) && ! empty( $params['site_url'] ) && ( isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $params['site_url'] ) === false ) ) {
+				Debug::log( __( 'Can\'t verify if request came from website.', 'premia' ), array( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), $params['site_url'] ) );
+				$validation_result = false;
+			}
+		}
+
+		return $validation_result;
 	}
 }

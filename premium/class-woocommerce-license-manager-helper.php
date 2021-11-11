@@ -197,13 +197,14 @@ class Woocommerce_License_Manager_Helper {
 	/**
 	 * Validate license
 	 *
-	 * @param bool  $validate The current state.
-	 * @param array $license_info The license information.
+	 * @param bool   $validate The current state.
+	 * @param object $request The WP_Request object.
 	 * @return bool The new state.
 	 */
-	public function validate_license( $validate, $license_info ) {
-		$validate = false;
-		$license  = lmfwc_get_license( $license_info['license_key'] );
+	public function validate_license( $validate, $request ) {
+		$license_info = $request->get_params();
+		$validate     = false;
+		$license      = lmfwc_get_license( $license_info['license_key'] );
 
 		if ( false !== $license ) {
 			$installs = lmfwc_get_license_meta( $license->getId(), 'installations', false );

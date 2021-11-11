@@ -56,6 +56,8 @@ class Woocommerce_Helper {
 			add_filter( 'premia_supported_post_types', array( $this, 'add_product_support' ) );
 			add_filter( 'premia_customize_update_info', array( $this, 'add_product_information' ), 10, 3 );
 			add_filter( 'premia_update_field', array( $this, 'set_subscription_to_zero' ), 10, 3 );
+			add_filter( 'premia_update_field', array( $this, 'do_not_validate' ), 10, 3 );
+			add_filter( 'premia_license_validity', array( $this, 'set_license_validity_from_product' ), 10, 2 );
 		}
 
 		if ( ! Woocommerce_License_Manager_Helper::is_license_manager_active() ) {
@@ -71,6 +73,16 @@ class Woocommerce_Helper {
 			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'add_licenses' ) );
 			add_action( 'woocommerce_order_details_after_order_table', array( $this, 'manage_installs' ) );
 		}
+	}
+
+	/**
+	 * Set license validity days from product
+	 *
+	 * @param int $current The current value.
+	 * @param int $post_id The product ID.
+	 */
+	public function set_license_validity_from_product( $current, $post_id ) {
+		return intval( get_post_meta( $post_id, '_updater_license_validity', true ) );
 	}
 
 	/**
@@ -618,6 +630,24 @@ class Woocommerce_Helper {
 						$value = 0;
 					}
 				}
+			}
+		}
+		return $value;
+	}
+
+	/**
+	 * When the checkbox for validation is selected, save the value as "on".
+	 *
+	 * @param string $value The current value.
+	 * @param array  $field the CMB2 field.
+	 * @param int    $post_id The Post ID.
+	 * @return string The new value.
+	 */
+	public function do_not_validate( $value, $field, $post_id ) {
+		// We don't need to do this for Woocommerce products.
+		if ( get_post_type( $post_id ) !== 'product' ) {
+			if ( '_updater_do_not_validate_licenses' === $field['name'] ) {
+				$value = 'on';
 			}
 		}
 		return $value;

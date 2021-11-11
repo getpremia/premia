@@ -53,7 +53,9 @@ class Updater {
 	 */
 	public function add_license_info( $args ) {
 		$option_name         = str_replace( '-', '_', $this->plugin_name ) . '_license_key';
+		$tag_option_name     = str_replace( '-', '_', $this->plugin_name ) . '_tag';
 		$args['license_key'] = get_option( $option_name );
+		$args['version']     = get_option( $tag_option_name );
 		$args['site_url']    = esc_url( get_site_url() );
 		$args['plugin']      = $this->plugin_name;
 

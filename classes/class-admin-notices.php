@@ -71,7 +71,8 @@ class Admin_Notices {
 			foreach ( $notices['notices'] as $key => $notice ) {
 				$extra = '';
 				if ( 'permission-issue' === $notice['type'] ) {
-					$extra = '<a href="' . esc_url( admin_url( 'admin.php?page=premia-settings' ) ) . '">' . __( 'Go to settings', 'premia' ) . '.</a>';
+					$extra  = '<a href="' . esc_url( admin_url( 'admin.php?page=premia-settings' ) ) . '">' . __( 'Go to settings', 'premia' ) . '.</a><br/>';
+					$extra .= '<small><i>' . __( 'Premia serves files via REST requests, not with direct links. This issue was detected in this link or path', 'premia' ) . ': ' . esc_url( $notice['data']['file'] ) . '</i></small>';
 				}
 				echo '<div data-type="premia-notice" data-id="' . esc_attr( $key ) . '" class="notice notice-' . esc_html( $notice['notice_type'] ) . '">';
 				echo '<p>' . esc_html( $notice['message'] ) . ( ! empty( $extra ) ? ' ' . wp_kses_post( $extra ) : '' ) . '</p>';

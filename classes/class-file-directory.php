@@ -19,16 +19,20 @@ class File_Directory {
 	/**
 	 * Prepare directories
 	 *
-	 * @param string $base_dir Path to base dir.
-	 * @param string $name The name of the new directory.
-	 * @param string $version The name of the subdirectory.
-	 * @return array Some new file paths.
+	 * @param string $name Plugin name.
+	 * @param string $version Plugin version.
 	 */
-	public static function prepare_directories( $base_dir, $name, $version ) {
+	public static function prepare_directories( $name, $version ) {
 
 		global $wp_filesystem;
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		WP_Filesystem();
+
+		$base_dir = trailingslashit( apply_filters( 'premia_plugin_assets_download_path', plugin_dir_path( dirname( __FILE__ ) ) ) );
+
+		if ( ! is_dir( $base_dir ) ) {
+			$wp_filesystem->mkdir( $base_dir );
+		}
 
 		if ( ! is_dir( $base_dir . 'releases' ) ) {
 			$wp_filesystem->mkdir( $base_dir . 'releases/' );
@@ -55,6 +59,7 @@ class File_Directory {
 		}
 
 		return array(
+			'base_dir'         => $base_dir,
 			'releases'         => 'releases/',
 			'current_releases' => 'releases/' . $name . '/',
 			'current_release'  => 'releases/' . $name . '/' . $version . '/',

@@ -7,7 +7,7 @@
  * @copyright         2021 Conference7
  *
  * @wordpress-plugin
- * Plugin Name:       Premia
+ * Plugin Name:       Premia Premium
  * Plugin URI:        https://mklasen.com
  * Description:       Premia
  * Version:           1.1
@@ -26,13 +26,18 @@ require plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
  *
  * @since    1.0
  */
-function run_premia() {
+function run_premia_premium() {
 	new Github();
 	new REST_Endpoints();
 	new Custom_Fields();
 	new Shortcodes();
 	new Debug();
+	new Admin_Options();
 	new Admin_Notices();
+	new Licenses();
+	new Woocommerce_Helper();
+	new Woocommerce_License_Manager_Helper();
+	new Updater( 'premia', __FILE__ );
 }
 
-run_premia();
+run_premia_premium();
