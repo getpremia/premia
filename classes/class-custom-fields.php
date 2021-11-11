@@ -75,6 +75,7 @@ class Custom_Fields {
 					'label'   => __( 'Expires on', 'premia' ),
 					'type'    => 'static_text',
 					'visible' => true,
+					'save'    => false,
 				),
 				array(
 					'name'    => '_updater_nonce',
