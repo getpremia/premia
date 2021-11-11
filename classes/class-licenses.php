@@ -103,16 +103,13 @@ class Licenses {
 	 * @param object $request The request object.
 	 */
 	public function activate( $request ) {
-		/**
-		 * What should activate do?
-		 * 1. Validate
-		 * 2. Add site
-		 */
 		$validate     = self::validate_license_key( $request );
 		$license_info = $request->get_params();
 		if ( true === $validate ) {
 			self::add_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
+			return new \WP_REST_Response( array( 'message' => 'License activated!' ), 200 );
 		}
+		return new \WP_REST_Response( array( 'message' => 'Something went wrong.' ), 400 );
 	}
 
 	/**
@@ -121,54 +118,9 @@ class Licenses {
 	 * @param object $request The request object.
 	 */
 	public function deactivate( $request ) {
-		return $this->manage_license( $request, 'deactivate' );
-	}
-
-	/**
-	 * Rest callback for activation.
-	 *
-	 * @param object $request The WP_Request object.
-	 * @param string $action The intended action.
-	 */
-	public function manage_license( $request, $action ) {
-
-		$defaults = array(
-			'license_key' => '',
-			'site_url'    => '',
-			'action'      => $action,
-		);
-
-		$params = $request->get_params();
-
-		$license_info = wp_parse_args( $params, $defaults );
-
-		switch ( $action ) {
-			case 'deactivate':
-				Debug::log( 'Deactivate license', $license_info );
-				$result = self::activate_license( true, $request );
-				if ( ! $result ) {
-					Debug::log( 'Failed to deactivate license', $license_info );
-					return new \WP_REST_Response( array( 'error' => 'Failed to deactivate license' ), 400 );
-				} else {
-					return __( 'License deactivated!', 'premia' );
-				}
-				break;
-
-			case 'activate':
-				Debug::log( 'Activate license', $license_info );
-				$result = self::activate_license( $request );
-				if ( ! $result ) {
-					Debug::log( 'Failed to activate license', $license_info );
-					return new \WP_REST_Response( array( 'error' => 'Failed to activate license' ), 400 );
-				} else {
-					return __( 'License activated!', 'premia' );
-				}
-				break;
-
-			default:
-				Debug::log( 'No action?', array( $action, $license_info ) );
-				return new \WP_REST_Response( array( 'error' => 'No action provided.' ), 400 );
-		}
+		$license_info = $request->get_params();
+		self::remove_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
+		return new \WP_REST_Response( array( 'message' => 'License deactivated!' ), 200 );
 	}
 
 	/**
@@ -390,6 +342,8 @@ class Licenses {
 			}
 			update_post_meta( $post->ID, 'installations', $sites );
 		}
+
+		return true;
 	}
 
 	/**
