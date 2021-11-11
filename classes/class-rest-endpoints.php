@@ -112,7 +112,6 @@ class REST_Endpoints {
 			$data = array();
 
 			// Get the result.
-			// @todo - Specific tag should be possible here?
 			$result = Github::request( $github_data, ( 'latest' === $version ) ? '/releases/latest' : '/releases/tags/' . $version );
 
 			if ( is_wp_error( $result ) || wp_remote_retrieve_response_code( $result ) !== 200 ) {
