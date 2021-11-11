@@ -535,7 +535,6 @@ class Licenses {
 
 		$params = $request->get_params();
 
-		// @todo - this function should have post ID already.
 		if ( ! isset( $params['post_id'] ) ) {
 			$params['post_id'] = Rest_Endpoints::get_plugin_post_id( $request );
 		}
