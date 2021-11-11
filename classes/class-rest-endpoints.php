@@ -77,7 +77,7 @@ class REST_Endpoints {
 		$post_id = self::get_plugin_post_id( $request );
 
 		if ( is_wp_error( $post_id ) ) {
-			return new \WP_REST_Response( array( 'error' => 'Resource not found.' ), 400 );
+			return new \WP_REST_Response( array( 'error' => $post_id->get_error_message() ), 400 );
 		}
 
 		// Latest release information.
@@ -86,13 +86,13 @@ class REST_Endpoints {
 
 		// Validate the license info.
 		// @todo - should not be here.
-		// $validate = $this->validate( $request );.
+		$result = $this->validate( $request );
 
 		// Can't validate? bail.
-		// if ( ! $validate ) {
-		// Debug::log( 'Failed validation.', $validate );
-		// return new \WP_REST_Response( array( 'error' => 'Validation failed.' ), 400 );
-		// }.
+		if ( is_wp_error( $result ) ) {
+			Debug::log( 'Failed validation.', $result );
+			return new \WP_REST_Response( array( 'error' => 'Validation failed.' . $result->get_error_message() ), 400 );
+		}
 
 		// Set post.
 		$post = get_post( $post_id );
@@ -216,7 +216,7 @@ class REST_Endpoints {
 		$post_id = self::get_plugin_post_id( $request );
 
 		if ( is_wp_error( $post_id ) ) {
-			return new \WP_REST_Response( array( 'error' => 'Resource not found.' ), 400 );
+			return new \WP_REST_Response( array( 'error' => $post_id->get_error_message() ), 400 );
 		}
 
 		if ( ! is_wp_error( $post_id ) ) {
@@ -266,7 +266,7 @@ class REST_Endpoints {
 	 * @return boolean true or false.
 	 */
 	public function validate( $request ) {
-		return apply_filters( 'premia_validate', true, $request->get_params() );
+		return apply_filters( 'premia_validate', true, $request );
 	}
 
 	/**
@@ -321,20 +321,20 @@ class REST_Endpoints {
 			}
 		}
 
+		if ( false === $post_id ) {
+			return new \WP_Error(
+				'rest_not_found',
+				__( 'Resource not found.', 'premia' ),
+				array( 'status' => 404 )
+			);
+		}
+
 		$github_data = Github::get_meta_data( $post_id );
 		// Check if post is configured with Premia.
 		if ( ! isset( $github_data['api_url'] ) || empty( $github_data['api_url'] ) ) {
 			return new \WP_Error(
 				'rest_error',
 				__( 'Cannot find Premia configuration.', 'premia' ),
-				array( 'status' => 404 )
-			);
-		}
-
-		if ( false === $post_id ) {
-			return new \WP_Error(
-				'rest_not_found',
-				__( 'Resource not found.', 'premia' ),
 				array( 'status' => 404 )
 			);
 		}

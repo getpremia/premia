@@ -48,7 +48,6 @@ class Licenses {
 	public function start() {
 		add_filter( 'premia_customize_post_fields', array( $this, 'add_validation_checkbox' ) );
 		add_filter( 'premia_validate_request', array( $this, 'validate_request' ), 10, 2 );
-		add_filter( 'premia_customize_update_info', array( $this, 'prevent_download' ), 10, 2 );
 		add_filter( 'premia_validate', array( $this, 'validate_site' ), 10, 2 );
 		add_action( 'rest_api_init', array( $this, 'register_endpoints' ) );
 		if ( $this->is_necessary() ) {
@@ -105,6 +104,7 @@ class Licenses {
 	public function activate( $request ) {
 		$validate     = self::validate_license_key( $request );
 		$license_info = $request->get_params();
+
 		if ( true === $validate ) {
 			self::add_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
 			return new \WP_REST_Response( array( 'message' => 'License activated!' ), 200 );
@@ -330,6 +330,7 @@ class Licenses {
 	 * @param string $site_url The site URL.
 	 */
 	public static function add_site( $license_key, $site_url ) {
+		// @todo - this function should not run when license manager is active.
 		Debug::log( 'Add site: ' . $site_url );
 		$post = self::get_license_by_license_key( $license_key );
 		if ( null !== $post && is_a( $post, 'WP_Post' ) ) {
@@ -396,58 +397,6 @@ class Licenses {
 	}
 
 	/**
-	 * Activate a license
-	 *
-	 * @param object $request The WP_Request object.
-	 * @return bool The result.
-	 */
-	public static function activate_license( $request ) {
-
-		$license_info = $request->get_params();
-
-		Debug::log( 'Activate:', $license_info );
-
-		// Check for status.
-		if ( isset( $license_info['action'] ) && 'status' === $license_info['action'] ) {
-			return self::check_site( $license_info['license_key'], $license_info['site_url'] );
-		}
-
-		$validate = self::validate_license_key( $request );
-		if ( $validate ) {
-			if ( ! empty( $license_info['site_url'] ) ) {
-				// Check if license key belongs to post.
-				self::add_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
-			}
-		}
-		return apply_filters( 'premia_activate_license', $validate, $license_info );
-	}
-
-	/**
-	 * Deactivate a license
-	 *
-	 * @param object $request The WP_Request object.
-	 * @return bool The result.
-	 */
-	public static function deactivate_license( $request ) {
-		$license_info = $request->get_params();
-		$status       = false;
-		if ( isset( $license_info['license_key'] ) && isset( $license_info['site_url'] ) ) {
-			if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
-				$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
-				if ( is_int( $linked_post ) ) {
-					$license_info['post_id'] = $linked_post;
-				}
-			}
-
-			if ( self::license_has_access( $request ) ) {
-				$status = true;
-				self::remove_site( $license_info['license_key'], esc_url_raw( $license_info['site_url'] ) );
-			}
-		}
-		return apply_filters( 'premia_deactivate_license', $status, $license_info );
-	}
-
-	/**
 	 * Get license
 	 *
 	 * @param array $license_info An array of license information.
@@ -480,12 +429,15 @@ class Licenses {
 	/**
 	 * Validate a site
 	 *
-	 * @param bool  $validate The current state.
-	 * @param array $license_info An array of license information.
-	 * @return bool The result.
+	 * @param bool                         $validate The current state.
+	 * @param object The WP_Request object.
+	 * @return mixed The result.
 	 */
-	public static function validate_site( $validate = false, $license_info ) {
+	public function validate_site( $validate = false, $request ) {
 
+		$license_info = $request->get_params();
+
+		// Add Post ID if not present.
 		if ( ! isset( $license_info['post_id'] ) && isset( $license_info['license_key'] ) ) {
 			$linked_post = intval( self::get_linked_post_by_license_key( $license_info['license_key'] ) );
 			Debug::log( 'Linked post:', $linked_post );
@@ -504,17 +456,28 @@ class Licenses {
 
 		if ( ! isset( $license_info['license_key'] ) || empty( $license_info['license_key'] ) ) {
 			Debug::log( 'Cannot validate', $license_info );
-			return false;
+			return new \WP_Error(
+				'validate_error',
+				__( 'No license key provided', 'premia' ),
+				array( 'status' => 400 )
+			);
 		}
 
 		if ( self::license_is_expired( $license_info ) ) {
-			$output['name'] = 'License has expired.';
-			return false;
+			return new \WP_Error(
+				'validate_error',
+				__( 'License has expired', 'premia' ),
+				array( 'status' => 400 )
+			);
 		}
 
 		// Check if license key belongs to post.
-		if ( ! self::license_has_access( $license_info ) ) {
-			return false;
+		if ( ! self::license_has_access( $request ) ) {
+			return new \WP_Error(
+				'validate_error',
+				__( 'The license does not have access to product', 'premia' ),
+				array( 'status' => 400 )
+			);
 		}
 
 		$sites = self::get_installations( $license_info['license_key'] );
@@ -534,7 +497,7 @@ class Licenses {
 
 		Debug::log( 'Validation result: ', $validate );
 
-		return apply_filters( 'premia_validate_license', $validate, $license_info );
+		return apply_filters( 'premia_validate_license', $validate, $request );
 	}
 
 	/**
@@ -671,25 +634,5 @@ class Licenses {
 		}
 
 		return $validation_result;
-	}
-
-	/**
-	 * Prevent Download
-	 *
-	 * @param array $output The output array for check_updates.
-	 * @param array $params The request parameters.
-	 * @param int   $post_id The Post ID.
-	 */
-	public function prevent_download( $output, $params, $post_id ) {
-
-		// @todo this function can probably be removed. (why remove a download url that doesn't work?, basically just passing existing get params).
-
-		$do_not_validate = get_post_meta( $post_id, '_updater_do_not_validate_licenses', true );
-
-		if ( 'on' !== $do_not_validate && ! $this->validate_site( false, $params ) ) {
-			$output['download_url'] = '';
-		}
-
-		return $output;
 	}
 }
