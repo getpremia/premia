@@ -17,7 +17,7 @@
     "autoload": {
         "classmap": [
             "classes",
-            "integrations"
+            "premium"
         ]
     },
     "scripts": {
