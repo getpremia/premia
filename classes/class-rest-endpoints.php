@@ -74,7 +74,13 @@ class REST_Endpoints {
 	 */
 	public function download_update( $request ) {
 
+		$version = 'latest';
+
 		$post_id = self::get_plugin_post_id( $request );
+
+		if ( ! empty( $request->get_param( 'tag' ) ) ) {
+			$version = $request->get_param( 'tag' );
+		}
 
 		if ( is_wp_error( $post_id ) ) {
 			return new \WP_REST_Response( array( 'error' => $post_id->get_error_message() ), 400 );
@@ -85,7 +91,6 @@ class REST_Endpoints {
 		$latest_release_path = get_post_meta( $post_id, '_premia_latest_release_path', true );
 
 		// Validate the license info.
-		// @todo - should not be here.
 		$result = $this->validate( $request );
 
 		// Can't validate? bail.
@@ -108,7 +113,7 @@ class REST_Endpoints {
 
 			// Get the result.
 			// @todo - Specific tag should be possible here?
-			$result = Github::request( $github_data, '/releases/latest' );
+			$result = Github::request( $github_data, ( 'latest' === $version ) ? '/releases/latest' : '/releases/tags/' . $version );
 
 			if ( is_wp_error( $result ) || wp_remote_retrieve_response_code( $result ) !== 200 ) {
 				Debug::log( 'Failed to talk to Github.', array( $github_data, $result, wp_remote_retrieve_response_code( $result ) ) );
@@ -259,11 +264,11 @@ class REST_Endpoints {
 	}
 
 	/**
-	 * Validate the license by checking if the url is saved as meta for this license key.
+	 * Validate function, used by licenses.
 	 *
 	 * @param object $request WP_Rest_Request object.
 	 *
-	 * @return boolean true or false.
+	 * @return mixed Bool or WP_Error object.
 	 */
 	public function validate( $request ) {
 		return apply_filters( 'premia_validate', true, $request );
