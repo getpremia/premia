@@ -27,27 +27,14 @@ require plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
  * @since    1.0
  */
 function run_premia() {
-
-	$classes = array(
-		'Github',
-		'REST_Endpoints',
-		'Custom_Fields',
-		'Shortcodes',
-		'Debug',
-		'Updater',
-		'Admin_Options',
-		'Admin_Notices',
-		'Woocommerce_Helper',
-		'Licenses',
-		'Woocommerce_License_Manager_Helper',
-	);
-
-	foreach ( $classes as $class ) {
-		$class = "Premia\\{$class}";
-		if ( class_exists( $class ) ) {
-			new $class( 'premia', __FILE__ );
-		}
-	}
+	new Github();
+	new REST_Endpoints();
+	new Custom_Fields();
+	new Shortcodes();
+	new Debug();
+	new Admin_Options();
+	new Admin_Notices();
+	new Updater( 'premia', __FILE__ );
 }
 
 run_premia();
