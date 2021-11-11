@@ -55,6 +55,7 @@ class Licenses {
 			add_action( 'manage_prem_license_posts_columns', array( $this, 'manage_columns' ) );
 			add_action( 'manage_prem_license_posts_custom_column', array( $this, 'columns_content' ), 10, 2 );
 			add_action( 'wp_insert_post_data', array( $this, 'insert_license' ), 10, 2 );
+			add_action( 'save_post_prem_license', array( $this, 'set_expiry_date' ), 10, 2 );
 		}
 	}
 
@@ -232,6 +233,39 @@ class Licenses {
 	}
 
 	/**
+	 * Set expiry date.
+	 *
+	 * @param int    $post_id The Post ID.
+	 * @param object $post The WP_Post Object.
+	 */
+	public function set_expiry_date( $post_id, $post ) {
+
+		if ( wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+
+		if ( 'auto-draft' === $post->post_status ) {
+			return;
+		}
+
+		$expiry_date = get_post_meta( $post_id, '_premia_expiry_date', true );
+
+		if ( empty( $expiry_date ) ) {
+			$license_days = apply_filters( 'premia_license_validity', 365, $post_id );
+
+			Debug::log( $license_days );
+
+			// Only add meta when license days is above 0.
+			if ( 0 !== $license_days && $license_days > 0 ) {
+				$today = new \Datetime();
+				$today->modify( "+{$license_days}days" );
+				$result = update_post_meta( $post_id, '_premia_expiry_date', $today->getTimestamp() );
+				Debug::log( 'run?', array( $result, $post_id ) );
+			}
+		}
+	}
+
+	/**
 	 * Verified if the key structure is correct.
 	 *
 	 * @param string $license_key The license key.
@@ -267,12 +301,12 @@ class Licenses {
 	/**
 	 * Create a license.
 	 *
-	 * @param int $product_id The Product ID.
+	 * @param int $post_id The Post ID.
 	 * @param int $user_id The User ID.
 	 * @return int The licence post ID.
 	 */
-	public static function create_license( $product_id, $user_id ) {
-		Debug::log( "Create license (product #{$product_id}) for user #{$user_id}" );
+	public static function create_license( $post_id, $user_id ) {
+		Debug::log( "Create license (product #{$post_id}) for user #{$user_id}" );
 
 		$license_args = array(
 			'post_title'  => self::generate_license(),
@@ -280,19 +314,9 @@ class Licenses {
 			'post_type'   => 'prem_license',
 			'post_author' => $user_id,
 			'meta_input'  => array(
-				'_premia_linked_post_id' => $product_id,
+				'_premia_linked_post_id' => $post_id,
 			),
 		);
-
-		$license_days = intval( get_post_meta( $product_id, '_updater_license_validity', true ) );
-
-		// Only add meta when license days is above 0.
-		if ( 0 !== $license_days && $license_days > 0 ) {
-			$today = new \Datetime();
-			$today->setTimestamp( time() );
-			$today->modify( "+{$license_days}days" );
-			$license_args['meta_input']['_premia_expiry_date'] = $today->getTimestamp();
-		}
 
 		$license_id = wp_insert_post( $license_args );
 
@@ -429,8 +453,8 @@ class Licenses {
 	/**
 	 * Validate a site
 	 *
-	 * @param bool                         $validate The current state.
-	 * @param object The WP_Request object.
+	 * @param bool   $validate The current state.
+	 * @param object $request The WP_Request object.
 	 * @return mixed The result.
 	 */
 	public function validate_site( $validate = false, $request ) {
