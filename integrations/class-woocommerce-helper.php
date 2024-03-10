@@ -508,7 +508,7 @@ class Woocommerce_Helper {
 		$fields[] = array(
 			'name'    => '_premia_linked_order_id',
 			'label'   => __( 'Linked order ID', 'premia' ),
-			'type'    => 'post_link',
+			'type'    => 'order_link',
 			'visible' => true,
 		);
 		return $fields;

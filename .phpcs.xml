@@ -11,7 +11,7 @@
     <file>.</file>
     <exclude-pattern>*/vendor/*</exclude-pattern>
 
-    <config name="minimum_supported_wp_version" value="4.7"/>
+    <config name="minimum_supported_wp_version" value="6.0"/>
 
     <rule ref="WordPress.WP.I18n">
         <properties>

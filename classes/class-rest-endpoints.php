@@ -163,12 +163,13 @@ class REST_Endpoints {
 		// Get the result.
 		$result = Github::request( $github_data, '/releases/latest' );
 
+        $body    = json_decode( wp_remote_retrieve_body( $result ) );
+
 		if ( is_wp_error( $result ) || wp_remote_retrieve_response_code( $result ) !== 200 ) {
 			Debug::log( 'Failed to talk to Github.', array( $github_data, $result, wp_remote_retrieve_response_code( $result ) ) );
-			return new \WP_REST_Response( array( 'error' => 'Failed to communicate with Github.' ), 400 );
+			return new \WP_REST_Response( array( 'error' => 'Failed to communicate with Github.', 'details' => $body ), 400 );
 		}
 
-		$body    = json_decode( wp_remote_retrieve_body( $result ) );
 		$version = $body->tag_name;
 
 		Debug::log( 'Github response: ', $body, 3 );

@@ -20,6 +20,8 @@ class Updater {
 	 */
 	private $api_url = 'https://getpremia.com/wp-json/premia/v1/';
 
+    public $plugin_name = '';
+
 	/**
 	 * The Updater library instance.
 	 *
